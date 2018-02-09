@@ -1,14 +1,15 @@
 FROM python:3.6
 
 ARG requirements=requirements/production.txt
+ENV DJANGO_SETTINGS_MODULE=djangodocker.settings.production
+
 WORKDIR /app
 
 COPY djangodocker djangodocker
 COPY manage.py /app/
 COPY requirements/ /app/requirements/ 
 
-RUN pip install -r $requirements && \
-        python manage.py collectstatic --noinput
+RUN pip install -r $requirements
 
 EXPOSE 8001
 
