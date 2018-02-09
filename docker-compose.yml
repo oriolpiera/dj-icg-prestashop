@@ -1,7 +1,10 @@
 version: "3.2"
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        requirements: requirements/development.txt
     networks:
       - main
     depends_on:
@@ -11,6 +14,8 @@ services:
     environment:
       MYSQL_DATABASE: djangodocker_db
       MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
     networks:
       - main
   nginx:
