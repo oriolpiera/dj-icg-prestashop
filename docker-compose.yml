@@ -5,6 +5,8 @@ services:
       context: .
       args:
         requirements: requirements/development.txt
+    environment:
+      - DJANGO_SETTINGS_MODULE=djangodocker.settings.development
     networks:
       - main
     depends_on:
