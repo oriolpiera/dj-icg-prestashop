@@ -7,6 +7,8 @@ services:
         requirements: requirements/development.txt
     environment:
       - DJANGO_SETTINGS_MODULE=djangodocker.settings.development
+    volumes:
+      - ./:/app
     networks:
       - main
     depends_on:
