@@ -7,6 +7,7 @@ services:
         requirements: requirements/development.txt
     environment:
       - DJANGO_SETTINGS_MODULE=djangodocker.settings.development
+      - PYTHONDONTWRITEBYTECODE=1
     volumes:
       - ./:/app
     networks:
