@@ -11,9 +11,6 @@ install:
 script:
 - docker-compose run -e DJANGO_SETTINGS_MODULE=djangodocker.settings.testing --no-deps --rm app py.test
 
-before_deploy:
-- docker build . -t devartis/djangodocker:lastest
-
 deploy:
   - provider: script
     script: bash scripts/deploy.sh
