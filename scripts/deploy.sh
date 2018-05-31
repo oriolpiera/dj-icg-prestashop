@@ -9,7 +9,7 @@ image_tag="latest";
 image_full_name="devartis/djangodocker:$image_tag";
 
 echo "Building image '$image_full_name'";
-docker build . -f "$image_full_name";
+docker build . -t "$image_full_name";
 
 echo "Authenticating";
 echo "$DOCKER_PASS" | docker login -u="$DOCKER_USERNAME" --password-stdin;
