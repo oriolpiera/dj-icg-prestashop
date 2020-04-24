@@ -13,13 +13,23 @@ class ManufacturerFactory(factory.django.DjangoModelFactory):
 class ProductFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = 'simpleapp.Product'
-        #database = 'global'
         django_get_or_create = ('icg_name','ps_name')
 
-    icg_reference = factory.Sequence(lambda n: "%03d" % n)
+    icg_id = factory.Sequence(lambda n: "%03d" % n)
+    icg_reference = factory.Sequence(lambda n: "%06d" % n)
     ps_name = 'Aquarela Rembrandt'
     manufacturer = factory.SubFactory(ManufacturerFactory)
     icg_name = 'Aquarela Rembrandt'
+
+class CombinationFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = 'simpleapp.Combination'
+        django_get_or_create = ('icg_name','ps_name')
+
+    icg_id = factory.Sequence(lambda n: "%03d" % n)
+    icg_talla = factory.Sequence(lambda n: "%06d" % n)
+    icg_color = factory.Sequence(lambda n: "%06d" % n)
+    product_id = factory.SubFactory(ProductFactory)
 
 class UserFactory(factory.django.DjangoModelFactory):
     email = 'admin@1admin.com'
@@ -42,6 +52,10 @@ class TestSimpleApp:
         assert len(man_list) is 1
 
     def test_createOneProduct_ok(self):
-        ProductFactory(icg_id=1)
+        ProductFactory()
         man_list = models.Product.objects.all()
+        assert len(man_list) is 1
+    def test_createOnecombination_ok(self):
+        CombinationFactory()
+        man_list = models.Combination.objects.all()
         assert len(man_list) is 1
