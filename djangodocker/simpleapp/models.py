@@ -10,6 +10,9 @@ class Manufacturer(models.Model):
     icg_name = models.CharField(max_length=100)
     ps_id = models.IntegerField(blank=True, null=True, default=0)
     ps_name = models.CharField(max_length=100, blank=True, default="")
+    created_date = models.DateTimeField(default=timezone.now)
+    modified_date = models.DateTimeField(blank=True, null=True)
+    updated = models.BooleanField(default=True)
 
 class Product(models.Model):
     icg_id = models.IntegerField()
@@ -21,10 +24,8 @@ class Product(models.Model):
     ean13 = models.CharField(max_length=15, blank=True)
     short_description = models.TextField(blank=True)
     long_description = models.TextField(blank=True)
-    created_date = models.DateTimeField(
-        default=timezone.now)
-    modified_date = models.DateTimeField(
-        blank=True, null=True)
+    created_date = models.DateTimeField(default=timezone.now)
+    modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
 
     def __str__(self):
@@ -34,41 +35,35 @@ class Product(models.Model):
         return self.icg_name + ' says "roar"'
 
 class Combination(models.Model):
-    name = models.CharField(max_length=100)
     icg_talla = models.CharField(max_length=15)
     icg_color = models.CharField(max_length=15)
-    ps_product_attribute = models.IntegerField()
+    ps_product_attribute = models.IntegerField(blank=True, null=True)
     product_id = models.ForeignKey('Product', on_delete=models.CASCADE)
-    ean13 = models.CharField(max_length=15)
-    created_date = models.DateTimeField(
-            default=timezone.now)
-    modified_date = models.DateTimeField(
-            blank=True, null=True)
-    updated = models.BooleanField()
+    ean13 = models.CharField(max_length=15, blank=True)
+    created_date = models.DateTimeField(default=timezone.now)
+    modified_date = models.DateTimeField(blank=True, null=True)
+    updated = models.BooleanField(default=True)
 
 class Stock(models.Model):
     combination_id = models.ForeignKey('Combination', on_delete=models.CASCADE)
-    stock_icg = models.IntegerField()
-    stock_ps = models.IntegerField()
-    created_date = models.DateTimeField(
-            default=timezone.now)
-    modified_date = models.DateTimeField(
-            blank=True, null=True)
-    updated = models.BooleanField()
+    icg_stock = models.IntegerField(default=0)
+    ps_stock = models.IntegerField(default=0)
+    created_date = models.DateTimeField(default=timezone.now)
+    modified_date = models.DateTimeField(blank=True, null=True)
+    updated = models.BooleanField(default=False)
 
 class Price(models.Model):
     combination_id = models.ForeignKey('Combination', on_delete=models.CASCADE)
-    pvp = models.FloatField()
-    dto_percent = models.FloatField()
-    preu_oferta = models.FloatField()
-    dto_euros = models.FloatField()
-    iva = models.IntegerField()
-    pvp_siva = models.FloatField()
-    preu_oferta_siva = models.FloatField()
-    dto_euros_siva = models.FloatField()
-    created_date = models.DateTimeField(
-            default=timezone.now)
-    modified_date = models.DateTimeField(
-            blank=True, null=True)
-    updated = models.BooleanField()
+    pvp = models.FloatField(default=0)
+    dto_percent = models.FloatField(default=0)
+    preu_oferta = models.FloatField(default=0)
+    dto_euros = models.FloatField(default=0)
+    iva = models.IntegerField(default=0)
+    pvp_siva = models.FloatField(default=0)
+    preu_oferta_siva = models.FloatField(default=0)
+    dto_euros_siva = models.FloatField(default=0)
+    created_date = models.DateTimeField(default=timezone.now)
+    modified_date = models.DateTimeField(blank=True, null=True)
+    updated = models.BooleanField(default=False)
 
+# vim: et ts=4 sw=4

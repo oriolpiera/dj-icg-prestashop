@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.7
 
 ARG requirements=requirements/production.txt
 ENV DJANGO_SETTINGS_MODULE=djangodocker.settings.production
