@@ -15,7 +15,7 @@ services:
     depends_on:
       - db
   db:
-    image: mysql
+    image: mysql:5.7
     environment:
       MYSQL_DATABASE: djangodocker_db
       MYSQL_ROOT_PASSWORD: root
