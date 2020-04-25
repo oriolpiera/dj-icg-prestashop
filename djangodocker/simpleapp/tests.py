@@ -7,8 +7,8 @@ class ManufacturerFactory(factory.django.DjangoModelFactory):
         django_get_or_create = ('icg_name','ps_name')
 
     icg_id = factory.Sequence(lambda n: "%03d" % n)
-    icg_name = 'REMBRANDT'
-    ps_name = 'Rembrandt'
+    icg_name = factory.Sequence(lambda n: 'Company ICG name %d' % n)
+    ps_name = factory.Sequence(lambda n: 'Company PS name %d' % n)
 
 class ProductFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -17,9 +17,9 @@ class ProductFactory(factory.django.DjangoModelFactory):
 
     icg_id = factory.Sequence(lambda n: "%03d" % n)
     icg_reference = factory.Sequence(lambda n: "%06d" % n)
-    ps_name = 'Aquarela Rembrandt'
+    ps_name = factory.Sequence(lambda n: 'Product PS name %d' % n)
     manufacturer = factory.SubFactory(ManufacturerFactory)
-    icg_name = 'Aquarela Rembrandt'
+    icg_name = factory.Sequence(lambda n: 'Product ICG name %d' % n)
 
 class CombinationFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -87,5 +87,22 @@ class TestSimpleApp:
         PriceFactory()
         man_list = models.Price.objects.all()
         assert len(man_list) is 1
+
+
+import pytest
+@pytest.mark.django_db
+class TestPrestashop:
+    def test_createOneManufacturer_ok(self):
+        man = ManufacturerFactory()
+        from prestapyt import PrestaShopWebService
+        prestashop = PrestaShopWebService('http://prestashop/api', 'GENERATE_COMPLEX_KEY_LIKE_THIS!!', json=True)
+        p = prestashop.get('manufacturers', options={'schema': 'blank'})
+
+        response = prestashop.add('manufacturers', man.prestashop_object())
+
+        assert response.status_code is 201
+        response_json = response.json()
+        assert response_json['manufacturer']['name'].startswith("Company ")
+        assert response_json['manufacturer']['active'] is "1"
 
 # vim: et ts=4 sw=4

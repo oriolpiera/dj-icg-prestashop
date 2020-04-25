@@ -5,3 +5,5 @@ media/
 .idea/
 .python-version
 .pytest_cache/
+migrations/
+.coverage

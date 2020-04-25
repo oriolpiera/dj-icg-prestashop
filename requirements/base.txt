@@ -1,2 +1,3 @@
 mysqlclient==1.3.12
 Django==1.11.17
+git+https://github.com/oriolpiera/prestapyt.git@ADD_json_format

@@ -9,8 +9,11 @@ install:
 - docker-compose pull
 - docker-compose build
 
+before_script:
+- docker-compose up -d
+
 script:
-- docker-compose run -e DJANGO_SETTINGS_MODULE=djangodocker.settings.testing --no-deps --rm app bash -c "python manage.py makemigrations; python manage.py migrate; py.test;"
+- docker-compose run -e DJANGO_SETTINGS_MODULE=djangodocker.settings.testing --no-deps --rm app bash -c "python manage.py makemigrations; python manage.py migrate; coverage run -m pytest;"
 
 deploy:
   - provider: script
