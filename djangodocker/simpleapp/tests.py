@@ -1,5 +1,7 @@
 import factory
-from . import models
+import pytest
+from . import models, mssql
+import random
 
 class ManufacturerFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -29,6 +31,8 @@ class CombinationFactory(factory.django.DjangoModelFactory):
     icg_talla = factory.Sequence(lambda n: "%06d" % n)
     icg_color = factory.Sequence(lambda n: "%06d" % n)
     product_id = factory.SubFactory(ProductFactory)
+    ean13 = random.randint(1000000000000,9999999999999)
+    minimal_quantity = 1
 
 class StockFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -42,7 +46,7 @@ class StockFactory(factory.django.DjangoModelFactory):
 class PriceFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = 'simpleapp.Price'
-        django_get_or_create = ('pvp','dto_percent')
+        django_get_or_create = ('pvp','dto_percent', 'combination_id')
 
     pvp = 0
     dto_percent = 0
@@ -56,7 +60,7 @@ class UserFactory(factory.django.DjangoModelFactory):
     is_staff = True
     is_active = True
 
-import pytest
+
 @pytest.mark.django_db
 class TestSimpleApp:
     def test_one(self):
@@ -75,8 +79,10 @@ class TestSimpleApp:
 
     def test_createOneCombination_ok(self):
         CombinationFactory()
-        man_list = models.Combination.objects.all()
-        assert len(man_list) is 1
+        prod_list = models.Product.objects.all()
+        comb_list = models.Combination.objects.all()
+        assert len(prod_list) is 1
+        assert len(comb_list) is 1
 
     def test_createOneStock_ok(self):
         StockFactory()
@@ -84,25 +90,60 @@ class TestSimpleApp:
         assert len(man_list) is 1
 
     def test_createOnePrice_ok(self):
-        PriceFactory()
-        man_list = models.Price.objects.all()
-        assert len(man_list) is 1
+        p = PriceFactory()
+        comb_list = models.Combination.objects.all()
+        price_list = models.Price.objects.all()
+        assert len(comb_list) is 1
+        assert len(price_list) is 1
 
 
-import pytest
 @pytest.mark.django_db
 class TestPrestashop:
+
+    @classmethod
+    def setup_class(self):
+        import prestapyt
+        self._api =  prestapyt.PrestaShopWebServiceDict(
+            'http://prestashop/api', 'GENERATE_COMPLEX_KEY_LIKE_THIS!!', debug=True, verbose=True)
+
+
     def test_createOneManufacturer_ok(self):
         man = ManufacturerFactory()
-        from prestapyt import PrestaShopWebService
-        prestashop = PrestaShopWebService('http://prestashop/api', 'GENERATE_COMPLEX_KEY_LIKE_THIS!!', json=True)
-        p = prestashop.get('manufacturers', options={'schema': 'blank'})
 
-        response = prestashop.add('manufacturers', man.prestashop_object())
+        response = self._api.add('manufacturers', man.prestashop_object())
 
-        assert response.status_code is 201
-        response_json = response.json()
-        assert response_json['manufacturer']['name'].startswith("Company ")
-        assert response_json['manufacturer']['active'] is "1"
+        assert isinstance(int(response['prestashop']['manufacturer']['id']), int)
+        assert response['prestashop']['manufacturer']['active'] is "1"
+
+
+    def test_createOneProduct_ok(self):
+        prod = ProductFactory()
+
+        response = self._api.add('products', prod.prestashop_object())
+
+        assert isinstance(int(response['prestashop']['product']['id']), int)
+        assert response['prestashop']['product']['active'] is "1"
+
+
+    def test_createOneCombination_ok(self):
+        comb = CombinationFactory()
+
+        response = self._api.add('combinations', comb.prestashop_object())
+
+        assert isinstance(int(response['prestashop']['combination']['id']), int)
+
+
+    def test_updateOnePrice_ok(self):
+        comb = CombinationFactory()
+        response = self._api.add('combinations', comb.prestashop_object())
+        comb.ps_id = response['prestashop']['combination']['id']
+        assert comb.ps_id
+        price = PriceFactory(combination_id = comb)
+
+        response = self._api.edit('combinations', price.update_price())
+
+        assert isinstance(int(response['prestashop']['combination']['id']), int)
+
+
 
 # vim: et ts=4 sw=4

@@ -56,11 +56,10 @@ class Product(models.Model):
     def prestashop_object(self):
         return {
             "product": {
-                "id_manufacturer": manufacturer.ps_id,
+                "id_manufacturer": self.manufacturer.ps_id,
+                "id_manufacturer": "1",
                 "id_category_default": "4",
-                "manufacturer_name": manufacturer.ps_name,
-                "type": "simple",
-                "reference": manufacturer.icg_reference,
+                "reference": self.icg_reference,
                 "state": "1",
                 "price": "0",
                 "active": "1",
@@ -71,15 +70,36 @@ class Product(models.Model):
                 "show_price": "1",
                 "indexed": "1",
                 "visibility": "both",
+                'name': {
+                    'language': [{
+                        'attrs': {
+                            'id': '1',
+                            'href': {'value': 'http://localhost:8080/api/languages/1',
+                            'xmlns': 'http://www.w3.org/1999/xlink'},
+                        },
+                        'value': self.icg_name
+                        }],
+                },
+                "link_rewrite": {
+                    'language': [{
+                        'attrs': {
+                            'id': '1',
+                            'href': {'value': 'http://localhost:8080/api/languages/1',
+                            'xmlns': 'http://www.w3.org/1999/xlink'},
+                        },
+                        'value': "name-rewrite"
+                        }],
+                }
             }
         }
 
 class Combination(models.Model):
+    ps_id = models.IntegerField(blank=True, null=True) #previous ps_product_attribut
     icg_talla = models.CharField(max_length=15)
     icg_color = models.CharField(max_length=15)
-    ps_product_attribute = models.IntegerField(blank=True, null=True)
     product_id = models.ForeignKey('Product', on_delete=models.CASCADE)
     ean13 = models.CharField(max_length=15, blank=True)
+    minimal_quantity = models.IntegerField(default=1)
     created_date = models.DateTimeField(default=timezone.now)
     modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
@@ -91,8 +111,18 @@ class Combination(models.Model):
     def saved_in_prestashop(self):
         return ps_product_attribute
 
+    def prestashop_object(self):
+        return {
+            "combinations": {
+                "id_product": self.product_id.ps_id,
+                "ean13": self.ean13,
+                "price": "0",
+                "minimal_quantity": self.minimal_quantity,
+            }
+        }
+
 class Stock(models.Model):
-    combination_id = models.ForeignKey('Combination', on_delete=models.CASCADE)
+    combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE)
     icg_stock = models.IntegerField(default=0)
     ps_stock = models.IntegerField(default=0)
     created_date = models.DateTimeField(default=timezone.now)
@@ -103,8 +133,19 @@ class Stock(models.Model):
         verbose_name = 'stock'
         verbose_name_plural = 'stocks'
 
+    def prestashop_object(self):
+        return {
+            "combinations": {
+                "id_product": self.product_id.ps_id,
+                "ean13": self.ean13,
+                "price": "0",
+                "minimal_quantity": self.combination_id.minimal_quantity,
+            }
+        }
+
 class Price(models.Model):
-    combination_id = models.ForeignKey('Combination', on_delete=models.CASCADE)
+    combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE, primary_key=True)
+    ps_specific_price = models.IntegerField(default=0)
     pvp = models.FloatField(default=0)
     dto_percent = models.FloatField(default=0)
     preu_oferta = models.FloatField(default=0)
@@ -120,5 +161,44 @@ class Price(models.Model):
     class Meta:
         verbose_name = 'price'
         verbose_name_plural = 'prices'
+
+    def update_price(self):
+        return {
+            "combinations": {
+                "id": self.combination_id.ps_id,
+                "id_product": self.combination_id.product_id.ps_id,
+                "price": self.pvp_siva,
+                "minimal_quantity": self.combination_id.minimal_quantity,
+            }
+        }
+
+    def update_discount(self):
+        return {
+            "specific_prices": {
+                "id": self.ps_specific_price,
+                "reduction": str(float(self.dto_percent/100)),
+            }
+        }
+
+    def create_discount(self):
+        return {
+            "specific_prices": {
+                "reduction": str(float(self.dto_percent/100)),
+                "id_product": self.combination_id.product_id.ps_id,
+                "id_product_attribute": self.combination_id.ps_id,
+                "id_shop": 0,
+                "id_cart": 0,
+                "id_currency": 0,
+                "id_country": 0,
+                "id_group": 0,
+                "id_customer": 0,
+                "price": 0,
+                "reduction_tax": 0,
+                "from": '0000-00-00 00:00:00',
+                "to": '0000-00-00 00:00:00',
+                "reduction_type": 'percentage',
+                "from_quantity": 1,
+            }
+        }
 
 # vim: et ts=4 sw=4
