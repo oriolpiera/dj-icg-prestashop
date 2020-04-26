@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from django.db import models
 from django.utils import timezone
 
@@ -31,7 +32,7 @@ class Manufacturer(models.Model):
 
 
 class Product(models.Model):
-    icg_id = models.IntegerField()
+    icg_id = models.IntegerField(unique=True)
     icg_reference = models.CharField(max_length=20)
     icg_name = models.CharField(max_length=100)
     ps_id = models.IntegerField(blank=True, null=True, default=0)
@@ -41,17 +42,38 @@ class Product(models.Model):
     long_description = models.TextField(blank=True)
     created_date = models.DateTimeField(default=timezone.now)
     modified_date = models.DateTimeField(blank=True, null=True)
+    icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
+    visible_web = models.BooleanField(default=True)
+
 
     class Meta:
         verbose_name = 'product'
         verbose_name_plural = 'products'
 
     def __str__(self):
-        return self.icg_name
+        return "Producte %d de nom %s i referencia %s" % (self.icg_id, self.icg_name, self.icg_reference)
 
     def saved_in_prestashop(self):
         return ps_id
+
+    @classmethod
+    def create(cls, icg_id, icg_reference, icg_name, manufacturer):
+        product = cls(icg_id=icg_id, icg_reference=icg_reference,
+            icg_name=icg_name, manufacturer=manufacturer)
+        return product
+
+    def compare(self, product):
+        result = {}
+        if self.icg_reference != product.icg_reference:
+            result['icg_reference'] = product.icg_reference
+        if self.manufacturer != product.manufacturer:
+            result['manufacturer'] = product.manufacturer.icg_id
+        if self.icg_name != product.icg_name:
+            result['icg_name'] = product.icg_name
+        if self.visible_web != product.visible_web:
+            result['visible_web'] = "0"
+        return result
 
     def prestashop_object(self):
         return {
@@ -103,10 +125,15 @@ class Combination(models.Model):
     created_date = models.DateTimeField(default=timezone.now)
     modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
+    discontinued = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = 'combination'
         verbose_name_plural = 'combinations'
+
+    def __str__(self):
+        return "Combinació del Producte %s de color %s i talla %s" % (
+            str(self.product_id.icg_id), self.icg_color, self.icg_talla)
 
     def saved_in_prestashop(self):
         return ps_product_attribute
@@ -121,12 +148,21 @@ class Combination(models.Model):
             }
         }
 
+    def compare(self, product):
+        result = {}
+        if self.ean13 != product.ean13:
+            result['ean13'] = product.ean13
+        if self.discontinued != product.discontinued:
+            result['discontinued'] = product.discontinued
+        return result
+
 class Stock(models.Model):
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE)
     icg_stock = models.IntegerField(default=0)
     ps_stock = models.IntegerField(default=0)
     created_date = models.DateTimeField(default=timezone.now)
     modified_date = models.DateTimeField(blank=True, null=True)
+    icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=False)
 
     class Meta:
@@ -156,11 +192,22 @@ class Price(models.Model):
     dto_euros_siva = models.FloatField(default=0)
     created_date = models.DateTimeField(default=timezone.now)
     modified_date = models.DateTimeField(blank=True, null=True)
+    icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = 'price'
         verbose_name_plural = 'prices'
+
+    def compare(self, product):
+        result = {}
+        if self.dto_percent != product.dto_percent:
+            result['dto_percent'] = product.dto_percent
+        if self.iva != product.iva:
+            result['iva'] = product.iva
+        if self.pvp_siva != product.pvp_siva:
+            result['pvp_siva'] = product.pvp_siva
+        return result
 
     def update_price(self):
         return {

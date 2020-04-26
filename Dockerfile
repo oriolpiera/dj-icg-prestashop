@@ -3,6 +3,9 @@ FROM python:3.7
 ARG requirements=requirements/production.txt
 ENV DJANGO_SETTINGS_MODULE=djangodocker.settings.production
 
+#Set de locale
+ENV LC_ALL es_ES.UTF-8
+
 WORKDIR /app
 
 COPY djangodocker djangodocker

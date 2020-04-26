@@ -8,7 +8,8 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=djangodocker.settings.development
       - PYTHONDONTWRITEBYTECODE=1
-    command: ./scripts/wait-for-prestashop.sh
+      - PYTHONIOENCODING=UTF-8
+    command: bash -c  "./scripts/wait-for-prestashop.sh; python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./:/app
     networks:

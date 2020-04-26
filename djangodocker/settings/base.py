@@ -82,7 +82,7 @@ DATABASES = {
     'USER': 'root',
     'PASSWORD': 'root',
     'HOST': 'db', # Or an IP Address that your DB is hosted on
-    'PORT': '33060',
+    'PORT': '3306',
   }
 }
 # Password validation
