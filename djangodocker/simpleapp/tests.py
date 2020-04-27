@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import factory
 import pytest
-from . import models, mssql, controller
+from . import models, mssql, controller, prestashop
 import random
 from django.core.exceptions import ObjectDoesNotExist,MultipleObjectsReturned
 
@@ -10,7 +10,7 @@ class ManufacturerFactory(factory.django.DjangoModelFactory):
         model = 'simpleapp.Manufacturer'
         django_get_or_create = ('icg_name','ps_name')
 
-    icg_id = factory.Sequence(lambda n: "%03d" % n)
+    icg_id = factory.Sequence(int)
     icg_name = factory.Sequence(lambda n: 'Company ICG name %d' % n)
     ps_name = factory.Sequence(lambda n: 'Company PS name %d' % n)
 
@@ -19,8 +19,8 @@ class ProductFactory(factory.django.DjangoModelFactory):
         model = 'simpleapp.Product'
         django_get_or_create = ('icg_name','ps_name', 'icg_id')
 
-    icg_id = factory.Sequence(lambda n: "%03d" % n)
-    icg_reference = factory.Sequence(lambda n: "%06d" % n)
+    icg_id = factory.Sequence(int)
+    icg_reference = factory.Sequence(lambda n: 100000 + n)
     ps_name = factory.Sequence(lambda n: 'Product PS name %d' % n)
     manufacturer = factory.SubFactory(ManufacturerFactory)
     icg_name = factory.Sequence(lambda n: 'Product ICG name %d' % n)
@@ -30,10 +30,10 @@ class CombinationFactory(factory.django.DjangoModelFactory):
         model = 'simpleapp.Combination'
         django_get_or_create = ('icg_talla','icg_color', 'product_id')
 
-    icg_talla = factory.Sequence(lambda n: "%06d" % n)
-    icg_color = factory.Sequence(lambda n: "%06d" % n)
+    icg_talla = factory.Sequence(lambda n: "t_%d" % n)
+    icg_color = factory.Sequence(lambda n: "c_%d" % n)
     product_id = factory.SubFactory(ProductFactory)
-    ean13 = random.randint(1000000000000,9999999999999)
+    ean13 = factory.Sequence(lambda n: 1000000000000 + n)
     minimal_quantity = 1
 
 class StockFactory(factory.django.DjangoModelFactory):
@@ -62,6 +62,14 @@ class UserFactory(factory.django.DjangoModelFactory):
     is_staff = True
     is_active = True
 
+class ProductOptionFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = 'simpleapp.ProductOption'
+        django_get_or_create = ('ps_icg_type', 'ps_id')
+
+    ps_id = 0
+    ps_icg_type = 'talla'
+    product_id = factory.SubFactory(ProductFactory)
 
 @pytest.mark.django_db
 class TestSimpleApp:
@@ -107,33 +115,38 @@ class TestPrestashop:
         import prestapyt
         self._api =  prestapyt.PrestaShopWebServiceDict(
             'http://prestashop/api', 'GENERATE_COMPLEX_KEY_LIKE_THIS!!', debug=True, verbose=True)
+        self.p = prestashop.ControllerPrestashop()
 
 
     def test_createOneManufacturer_ok(self):
         man = ManufacturerFactory()
 
-        response = self._api.add('manufacturers', man.prestashop_object())
+        self.p.get_or_create_manufacturer(man)
 
-        assert isinstance(int(response['prestashop']['manufacturer']['id']), int)
-        assert response['prestashop']['manufacturer']['active'] is "1"
+        assert man.ps_id
 
 
     def test_createOneProduct_ok(self):
         prod = ProductFactory()
 
-        response = self._api.add('products', prod.prestashop_object())
+        self.p.get_or_create_product(prod)
 
-        assert isinstance(int(response['prestashop']['product']['id']), int)
-        assert response['prestashop']['product']['active'] is "1"
+        assert prod.ps_id
 
 
     def test_createOneCombination_ok(self):
         comb = CombinationFactory()
 
-        response = self._api.add('combinations', comb.prestashop_object())
+        self.p.get_or_create_combination(comb)
 
-        assert isinstance(int(response['prestashop']['combination']['id']), int)
+        assert comb.ps_id
 
+    def test_createOneProductOption_ok(self):
+        po = ProductOptionFactory()
+
+        self.p.get_or_create_product_options(po)
+
+        assert po.ps_id
 
     def test_updateOnePrice_ok(self):
         comb = CombinationFactory()
@@ -145,6 +158,34 @@ class TestPrestashop:
         response = self._api.edit('combinations', price.update_price())
 
         assert isinstance(int(response['prestashop']['combination']['id']), int)
+
+    def test_createOneDiscount_ok(self):
+        comb = CombinationFactory()
+        response = self._api.add('combinations', comb.prestashop_object())
+        comb.ps_id = response['prestashop']['combination']['id']
+        assert comb.ps_id
+        price = PriceFactory(combination_id = comb)
+
+        response = self._api.add('specific_prices', price.create_discount())
+
+        assert isinstance(int(response['prestashop']['specific_price']['id']), int)
+
+    def test_updateOneDiscount_ok(self):
+        comb = CombinationFactory()
+        response = self._api.add('combinations', comb.prestashop_object())
+        comb.ps_id = response['prestashop']['combination']['id']
+        assert comb.ps_id
+        price = PriceFactory(combination_id = comb)
+        response = self._api.add('specific_prices', price.create_discount())
+        price.ps_id = response['prestashop']['specific_price']['id']
+        assert price.ps_id
+        price.save()
+        response = self._api.get('specific_prices', resource_id=price.ps_id)
+        response['specific_price']['reduction'] = 0.25
+
+        response = self._api.edit('specific_prices', response)
+
+        assert isinstance(int(response['prestashop']['specific_price']['id']), int)
 
 
 @pytest.mark.django_db

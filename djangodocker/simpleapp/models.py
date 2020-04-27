@@ -136,7 +136,7 @@ class Combination(models.Model):
             str(self.product_id.icg_id), self.icg_color, self.icg_talla)
 
     def saved_in_prestashop(self):
-        return ps_product_attribute
+        return ps_id
 
     def prestashop_object(self):
         return {
@@ -181,7 +181,7 @@ class Stock(models.Model):
 
 class Price(models.Model):
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE, primary_key=True)
-    ps_specific_price = models.IntegerField(default=0)
+    ps_id = models.IntegerField(default=0)
     pvp = models.FloatField(default=0)
     dto_percent = models.FloatField(default=0)
     preu_oferta = models.FloatField(default=0)
@@ -222,8 +222,13 @@ class Price(models.Model):
     def update_discount(self):
         return {
             "specific_prices": {
-                "id": self.ps_specific_price,
+                "id": self.ps_id,
                 "reduction": str(float(self.dto_percent/100)),
+                "id_shop": 0,
+                "id_cart": 0,
+                "id_product": self.combination_id.product_id.ps_id,
+                "id_product_attribute": self.combination_id.ps_id,
+                "id_currency": 0,
             }
         }
 
@@ -247,5 +252,27 @@ class Price(models.Model):
                 "from_quantity": 1,
             }
         }
+
+class ProductOption(models.Model):
+    ps_id = models.IntegerField(blank=True, null=True, default=0)
+    ps_name = models.CharField(max_length=100, default='')
+    ps_icg_type = models.CharField(max_length=10, default='') #talla o color
+    ps_public_name = models.CharField(max_length=100, default='')
+    ps_group_type = models.CharField(max_length=15, default='')
+    ps_position = models.IntegerField(default=0)
+    ps_iscolor = models.BooleanField(default=False)
+    product_id = models.ForeignKey('Product', on_delete=models.CASCADE)
+    created_date = models.DateTimeField(default=timezone.now)
+    modified_date = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'product_option'
+        verbose_name_plural = 'products_options'
+
+    def __str__(self):
+        return "Producte combinacio %d del producte amb ref %s i de nom  %s" % (self.ps_id, self.product_id.icg_reference, self.ps_name)
+
+    def saved_in_prestashop(self):
+        return ps_id
 
 # vim: et ts=4 sw=4
