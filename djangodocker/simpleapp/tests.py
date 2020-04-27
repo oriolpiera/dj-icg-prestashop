@@ -141,52 +141,59 @@ class TestPrestashop:
     def test_createOneManufacturer_ok(self):
         man = ManufacturerFactory()
 
-        self.p.get_or_create_manufacturer(man)
+        man_ps = self.p.get_or_create_manufacturer(man)
 
         assert man.ps_id
+        assert man_ps['manufacturer']['id']
 
     def test_createOneManufacturerGetOne_ok(self):
         man = ManufacturerFactory()
 
-        man1 = self.p.get_or_create_manufacturer(man)
-        man2 = self.p.get_or_create_manufacturer(man)
+        man_ps1 = self.p.get_or_create_manufacturer(man)
+        man_ps2 = self.p.get_or_create_manufacturer(man)
 
-        assert man1.ps_id is man2.ps_id
+        assert man.ps_id
+        assert man_ps1['manufacturer'] == man_ps2['manufacturer']
 
     def test_createTwoManufacturers_ok(self):
         man1 = ManufacturerFactory()
         man2 = ManufacturerFactory()
 
-        man1 = self.p.get_or_create_manufacturer(man1)
-        man2 = self.p.get_or_create_manufacturer(man2)
+        man_ps1 = self.p.get_or_create_manufacturer(man1)
+        man_ps2 = self.p.get_or_create_manufacturer(man2)
 
-        assert man1.ps_id is not man2.ps_id
-
+        assert man1.ps_id
+        assert man2.ps_id
+        assert man_ps1['manufacturer'] is not man_ps2['manufacturer']
 
 
     def test_createOneProduct_ok(self):
         prod = ProductFactory()
 
-        self.p.get_or_create_product(prod)
+        prod_ps = self.p.get_or_create_product(prod)
 
         assert prod.ps_id
+        assert prod_ps['product']['id']
 
     def test_createOneProductGetOne_ok(self):
         prod = ProductFactory()
 
-        prod1 = self.p.get_or_create_product(prod)
-        prod2 = self.p.get_or_create_product(prod)
+        prod_ps1 = self.p.get_or_create_product(prod)
+        prod_ps2 = self.p.get_or_create_product(prod)
 
-        assert prod1.ps_id is prod2.ps_id
+        assert prod.ps_id
+        assert prod_ps1['product'] == prod_ps2['product']
 
     def test_createTwoProducts_ok(self):
         prod1 = ProductFactory()
         prod2 = ProductFactory()
 
-        prod1 = self.p.get_or_create_product(prod1)
-        prod2 = self.p.get_or_create_product(prod2)
+        prod_ps1 = self.p.get_or_create_product(prod1)
+        prod_ps2 = self.p.get_or_create_product(prod2)
 
-        assert prod1.ps_id is not prod2.ps_id
+        assert prod1.ps_id
+        assert prod2.ps_id
+        assert prod_ps1['product'] != prod_ps2['product']
 
 
     def test_createOneCombination_ok(self):
@@ -293,7 +300,20 @@ class TestPrestashop:
 
         assert sp1.ps_id is not sp2.ps_id
 
+    def test_carregaNous_ok(self):
+        man = ManufacturerFactory()
+        man1 = self.p.get_or_create_manufacturer(man)
+        man.icg_name = 'Other thing'
+        man2 = self.p.get_or_create_manufacturer(man)
 
+        prod = ProductFactory.create_batch(2)
+        assert len(models.Product.objects.all()) is 2
+
+        self.p.carregaNous()
+
+        assert len(models.Manufacturer.objects.filter(updated = True)) is 0
+        assert len(models.Product.objects.filter(updated = True)) is 0
+ 
 
 @pytest.mark.django_db
 class TestController:

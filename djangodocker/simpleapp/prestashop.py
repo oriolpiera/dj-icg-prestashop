@@ -22,23 +22,31 @@ class ControllerPrestashop(object):
 
     def get_or_create_manufacturer(self, manufacturer):
         if manufacturer.ps_id:
-            self._api.get('manufacturers', resource_id=manufacturer.ps_id)
-            return manufacturer
+            return self._api.get('manufacturers', resource_id=manufacturer.ps_id)
         response = self._api.add('manufacturers', manufacturer.prestashop_object())
         manufacturer.ps_id = int(response['prestashop']['manufacturer']['id'])
+        manufacturer.ps_name = manufacturer.icg_name
         manufacturer.updated = False
         manufacturer.save()
-        return manufacturer
+        return response['prestashop']
 
     def get_or_create_product(self, product):
         if product.ps_id:
-            self._api.get('products', resource_id=product.ps_id)
-            return product
-        response = self._api.add('products', product.prestashop_object())
+            return self._api.get('products', resource_id=product.ps_id)
+        p_data = self._api.get('products', options={'schema': 'blank'})
+        p_data['product']['id_manufacturer'] = product.manufacturer.ps_id
+        p_data['product']['reference'] = product.icg_reference
+        p_data['product']['price'] = 0
+        p_data['product']['name']['language'] = self.update_language(
+            p_data['product']['name']['language'], product.icg_name)
+        p_data['product']['link_rewrite']['language'] = self.update_language(
+            p_data['product']['link_rewrite']['language'], "link-rewrite")
+
+        response = self._api.add('products', p_data)
         product.ps_id = int(response['prestashop']['product']['id'])
         product.updated = False
         product.save()
-        return product
+        return self._api.get('products', resource_id=product.ps_id)
 
     def get_or_create_combination(self, comb):
         if comb.ps_id:
@@ -113,3 +121,35 @@ class ControllerPrestashop(object):
         price.save()
         return price
 
+    def update_manufacturer(self, man_dj, man_ps, updated):
+        man_ps.update(man_dj.prestashop_object())
+        man_ps['manufacturer']['id'] = man_dj.ps_id
+        response = self._api.edit('manufacturers', man_ps)
+        man_dj.ps_id = int(response['prestashop']['manufacturer']['id'])
+        man_dj.ps_name = man_dj.icg_name
+        man_dj.updated = False
+        man_dj.save()
+
+    def updated_product(self, prod_dj, prod_ps, updated):
+        prod_ps.update(prod_dj.prestashop_object())
+        prod_ps['product']['id'] = prod_dj.ps_id
+        response = self._api.edit('products', prod_ps)
+        prod_dj.ps_id = int(response['prestashop']['product']['id'])
+        prod_dj.ps_name = prod_dj.icg_name
+        prod_dj.updated = False
+        prod_dj.save()
+
+    def carregaNous(self):
+        updated_manufacturers = models.Manufacturer.objects.filter(updated = True)
+        for man in updated_manufacturers:
+            m = self.get_or_create_manufacturer(man)
+            updated = man.compare(m)
+            if updated:
+                self.update_manufacturer(man, m, updated)
+
+        updated_products = models.Product.objects.filter(updated = True)
+        for prod in updated_products:
+            p = self.get_or_create_product(prod)
+            updated = prod.compare(p)
+            if updated:
+                self.updated_product(prod, p, updated)

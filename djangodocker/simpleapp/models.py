@@ -22,6 +22,18 @@ class Manufacturer(models.Model):
     def saved_in_prestashop(self):
         return ps_id
 
+    def compare(self, man):
+        result = {}
+        if self.ps_name != man['manufacturer']['name']:
+            result['ps_name'] = man['manufacturer']['name']
+        return result
+
+    @classmethod
+    def createFromPS(cls, man_dict):
+        man = cls(icg_id=0, icg_name = '',
+             ps_name = man_dict['manufacturer']['name'])
+        return man
+
     def prestashop_object(self):
         return {
             "manufacturer": {
@@ -65,21 +77,20 @@ class Product(models.Model):
 
     def compare(self, product):
         result = {}
-        if self.icg_reference != product.icg_reference:
-            result['icg_reference'] = product.icg_reference
-        if self.manufacturer != product.manufacturer:
-            result['manufacturer'] = product.manufacturer.icg_id
-        if self.icg_name != product.icg_name:
-            result['icg_name'] = product.icg_name
-        if self.visible_web != product.visible_web:
-            result['visible_web'] = "0"
+        if self.icg_reference != product['product']['reference']:
+            result['icg_reference'] = product['product']['reference']
+        if self.manufacturer.ps_id != product['product']['id_manufacturer']:
+            result['manufacturer'] = product['product']['id_manufacturer']
+        if self.icg_name != product['product']['name']['language']['value']:
+            result['icg_name'] = product['product']['name']['language']['value']
+        if self.visible_web != product['product']['active']:
+            result['visible_web'] = product['product']['active']
         return result
 
     def prestashop_object(self):
         return {
             "product": {
                 "id_manufacturer": self.manufacturer.ps_id,
-                "id_manufacturer": "1",
                 "id_category_default": "4",
                 "reference": self.icg_reference,
                 "state": "1",
@@ -92,6 +103,11 @@ class Product(models.Model):
                 "show_price": "1",
                 "indexed": "1",
                 "visibility": "both",
+                "id_supplier": "0",
+                "additional_delivery_times": "0",
+                "ecotax": "0.000000",
+                "online_only": "0",
+                "height": "0.000000",
                 'name': {
                     'language': [{
                         'attrs': {
