@@ -3,6 +3,7 @@ define('_PS_ADMIN_DIR_', getcwd());
 require(dirname(__FILE__).'/config/config.inc.php'); 
 echo "Som-hi";
 Configuration::updateValue('PS_WEBSERVICE', 1);
+Configuration::updateValue('_PS_MODE_DEV', true);
 $apiAccess = new WebserviceKey();
 $apiAccess->key = 'GENERATE_COMPLEX_KEY_LIKE_THIS!!';
 $apiAccess->save();

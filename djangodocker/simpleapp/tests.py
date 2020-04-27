@@ -71,6 +71,26 @@ class ProductOptionFactory(factory.django.DjangoModelFactory):
     ps_icg_type = 'talla'
     product_id = factory.SubFactory(ProductFactory)
 
+class ProductOptionValueFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = 'simpleapp.ProductOptionValue'
+        django_get_or_create = ('icg_name', 'ps_id')
+
+    ps_id = 0
+    po_id = factory.SubFactory(ProductOptionFactory)
+    icg_name = factory.Sequence(lambda n: "Attr_%d" % n)
+    ps_name = icg_name
+
+class SpecificPriceFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = 'simpleapp.SpecificPrice'
+        django_get_or_create = ('ps_id', 'combination_id', 'dto_percent')
+
+    ps_id = 0
+    combination_id = factory.SubFactory(CombinationFactory)
+    dto_percent = random.randint(1,50)
+
+
 @pytest.mark.django_db
 class TestSimpleApp:
     def test_one(self):
@@ -125,6 +145,24 @@ class TestPrestashop:
 
         assert man.ps_id
 
+    def test_createOneManufacturerGetOne_ok(self):
+        man = ManufacturerFactory()
+
+        man1 = self.p.get_or_create_manufacturer(man)
+        man2 = self.p.get_or_create_manufacturer(man)
+
+        assert man1.ps_id is man2.ps_id
+
+    def test_createTwoManufacturers_ok(self):
+        man1 = ManufacturerFactory()
+        man2 = ManufacturerFactory()
+
+        man1 = self.p.get_or_create_manufacturer(man1)
+        man2 = self.p.get_or_create_manufacturer(man2)
+
+        assert man1.ps_id is not man2.ps_id
+
+
 
     def test_createOneProduct_ok(self):
         prod = ProductFactory()
@@ -132,6 +170,23 @@ class TestPrestashop:
         self.p.get_or_create_product(prod)
 
         assert prod.ps_id
+
+    def test_createOneProductGetOne_ok(self):
+        prod = ProductFactory()
+
+        prod1 = self.p.get_or_create_product(prod)
+        prod2 = self.p.get_or_create_product(prod)
+
+        assert prod1.ps_id is prod2.ps_id
+
+    def test_createTwoProducts_ok(self):
+        prod1 = ProductFactory()
+        prod2 = ProductFactory()
+
+        prod1 = self.p.get_or_create_product(prod1)
+        prod2 = self.p.get_or_create_product(prod2)
+
+        assert prod1.ps_id is not prod2.ps_id
 
 
     def test_createOneCombination_ok(self):
@@ -141,6 +196,23 @@ class TestPrestashop:
 
         assert comb.ps_id
 
+    def test_createOneCombinationGetOne_ok(self):
+        comb = CombinationFactory()
+
+        comb1 = self.p.get_or_create_combination(comb)
+        comb2 = self.p.get_or_create_combination(comb)
+
+        assert comb1.ps_id is comb2.ps_id
+
+    def test_createTwoCombinations_ok(self):
+        comb1 = CombinationFactory()
+        comb2 = CombinationFactory()
+
+        comb1 = self.p.get_or_create_combination(comb1)
+        comb2 = self.p.get_or_create_combination(comb2)
+
+        assert comb1.ps_id is not comb2.ps_id
+
     def test_createOneProductOption_ok(self):
         po = ProductOptionFactory()
 
@@ -148,44 +220,79 @@ class TestPrestashop:
 
         assert po.ps_id
 
-    def test_updateOnePrice_ok(self):
+    def test_createOneProductOptionGetOne_ok(self):
+        po = ProductOptionFactory()
+
+        po1 = self.p.get_or_create_product_options(po)
+        po2 = self.p.get_or_create_product_options(po)
+
+        assert po1.ps_id is po2.ps_id
+
+    def test_createTwoProductOptions_ok(self):
+        po1 = ProductOptionFactory()
+        po2 = ProductOptionFactory()
+
+        po1 = self.p.get_or_create_product_options(po1)
+        po2 = self.p.get_or_create_product_options(po2)
+
+        assert po1.ps_id is not po2.ps_id
+
+    def test_createOneProductOptionValue_ok(self):
+        pov = ProductOptionValueFactory()
+
+        self.p.get_or_create_product_option_value(pov)
+
+        assert pov.ps_id
+
+    def test_createOneProductOptionValue_ok(self):
+        pov = ProductOptionValueFactory()
+
+        pov1 = self.p.get_or_create_product_option_value(pov)
+        pov2 = self.p.get_or_create_product_option_value(pov)
+
+        assert pov1.ps_id is pov2.ps_id
+
+    def test_createTwoProductOptionValues_ok(self):
+        pov1 = ProductOptionValueFactory()
+        pov2 = ProductOptionValueFactory()
+
+        pov1 = self.p.get_or_create_product_option_value(pov1)
+        pov2 = self.p.get_or_create_product_option_value(pov2)
+
+        assert pov1.ps_id is not pov2.ps_id
+
+    def test_createOneSpecificPrice_ok(self):
         comb = CombinationFactory()
-        response = self._api.add('combinations', comb.prestashop_object())
-        comb.ps_id = response['prestashop']['combination']['id']
-        assert comb.ps_id
-        price = PriceFactory(combination_id = comb)
+        self.p.get_or_create_combination(comb)
+        sp = SpecificPriceFactory(combination_id = comb)
 
-        response = self._api.edit('combinations', price.update_price())
+        self.p.get_or_create_specific_price(sp)
 
-        assert isinstance(int(response['prestashop']['combination']['id']), int)
+        assert sp.ps_id
 
-    def test_createOneDiscount_ok(self):
+    def test_createOneSpecificPriceGetOne_ok(self):
         comb = CombinationFactory()
-        response = self._api.add('combinations', comb.prestashop_object())
-        comb.ps_id = response['prestashop']['combination']['id']
-        assert comb.ps_id
-        price = PriceFactory(combination_id = comb)
+        self.p.get_or_create_combination(comb)
+        sp = SpecificPriceFactory(combination_id = comb)
 
-        response = self._api.add('specific_prices', price.create_discount())
+        sp1 = self.p.get_or_create_specific_price(sp)
+        sp2 = self.p.get_or_create_specific_price(sp)
 
-        assert isinstance(int(response['prestashop']['specific_price']['id']), int)
+        assert sp1.ps_id is sp2.ps_id
 
-    def test_updateOneDiscount_ok(self):
-        comb = CombinationFactory()
-        response = self._api.add('combinations', comb.prestashop_object())
-        comb.ps_id = response['prestashop']['combination']['id']
-        assert comb.ps_id
-        price = PriceFactory(combination_id = comb)
-        response = self._api.add('specific_prices', price.create_discount())
-        price.ps_id = response['prestashop']['specific_price']['id']
-        assert price.ps_id
-        price.save()
-        response = self._api.get('specific_prices', resource_id=price.ps_id)
-        response['specific_price']['reduction'] = 0.25
+    def test_createTwoSpecificPrices_ok(self):
+        comb1 = CombinationFactory()
+        comb2 = CombinationFactory()
+        self.p.get_or_create_combination(comb1)
+        self.p.get_or_create_combination(comb2)
+        sp1 = SpecificPriceFactory(combination_id = comb1)
+        sp2 = SpecificPriceFactory(combination_id = comb2)
 
-        response = self._api.edit('specific_prices', response)
+        sp1 = self.p.get_or_create_specific_price(sp1)
+        sp2 = self.p.get_or_create_specific_price(sp2)
 
-        assert isinstance(int(response['prestashop']['specific_price']['id']), int)
+        assert sp1.ps_id is not sp2.ps_id
+
 
 
 @pytest.mark.django_db

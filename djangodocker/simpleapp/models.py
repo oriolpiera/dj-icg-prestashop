@@ -264,6 +264,7 @@ class ProductOption(models.Model):
     product_id = models.ForeignKey('Product', on_delete=models.CASCADE)
     created_date = models.DateTimeField(default=timezone.now)
     modified_date = models.DateTimeField(blank=True, null=True)
+    updated = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = 'product_option'
@@ -274,5 +275,80 @@ class ProductOption(models.Model):
 
     def saved_in_prestashop(self):
         return ps_id
+
+class ProductOptionValue(models.Model):
+    icg_name = models.CharField(max_length=15, default='')
+    ps_id = models.IntegerField(blank=True, null=True, default=0)
+    ps_name = models.CharField(max_length=100, default='')
+    po_id = models.ForeignKey('ProductOption', on_delete=models.CASCADE)
+    created_date = models.DateTimeField(default=timezone.now)
+    modified_date = models.DateTimeField(blank=True, null=True)
+    updated = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = 'product_option_value'
+        verbose_name_plural = 'products_options_values'
+
+    def __str__(self):
+        return "Atribut %s del grup %s" % (self.icg_name, self.po_id.ps_name)
+
+    def saved_in_prestashop(self):
+        return ps_id
+
+class SpecificPrice(models.Model):
+    ps_id = models.IntegerField(default=0)
+    ps_reduction = models.FloatField(default=0)
+    combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE, primary_key=True)
+    dto_percent = models.FloatField(default=0)
+    dto_euros = models.FloatField(default=0)
+    dto_euros_siva = models.FloatField(default=0)
+    created_date = models.DateTimeField(default=timezone.now)
+    modified_date = models.DateTimeField(blank=True, null=True)
+    icg_modified_date = models.DateTimeField(blank=True, null=True)
+    updated = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = 'specific_price'
+        verbose_name_plural = 'specific_prices'
+
+    def compare(self, product):
+        result = {}
+        if self.dto_percent != product.dto_percent:
+            result['dto_percent'] = product.dto_percent
+        return result
+
+    def update_discount(self):
+        return {
+            "specific_prices": {
+                "id": self.ps_id,
+                "reduction": str(float(self.dto_percent/100)),
+                "id_shop": 0,
+                "id_cart": 0,
+                "id_product": self.combination_id.product_id.ps_id,
+                "id_product_attribute": self.combination_id.ps_id,
+                "id_currency": 0,
+            }
+        }
+
+    def create_discount(self):
+        return {
+            "specific_prices": {
+                "reduction": str(float(self.dto_percent/100)),
+                "id_product": self.combination_id.product_id.ps_id,
+                "id_product_attribute": self.combination_id.ps_id,
+                "id_shop": 0,
+                "id_cart": 0,
+                "id_currency": 0,
+                "id_country": 0,
+                "id_group": 0,
+                "id_customer": 0,
+                "price": 0,
+                "reduction_tax": 0,
+                "from": '0000-00-00 00:00:00',
+                "to": '0000-00-00 00:00:00',
+                "reduction_type": 'percentage',
+                "from_quantity": 1,
+            }
+        }
 
 # vim: et ts=4 sw=4
