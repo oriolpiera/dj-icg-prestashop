@@ -68,7 +68,7 @@ class ControllerPrestashop(object):
         return comb
 
     def get_or_create_product_options_django(self, product):
-        c = controller.Controller()
+        c = controller.ControllerICGProducts()
         ps_name = str(str(product.ps_id) + "_" + "talla")
         c.get_create_or_update_product_option(ps_name, product)
 
@@ -92,6 +92,7 @@ class ControllerPrestashop(object):
 
         response = self._api.add('product_options', po_data)
         po.ps_id = int(response['prestashop']['product_option']['id'])
+        po.updated = False
         po.save()
         return po
 

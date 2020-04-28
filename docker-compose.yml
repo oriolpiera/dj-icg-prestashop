@@ -9,7 +9,11 @@ services:
       - DJANGO_SETTINGS_MODULE=djangodocker.settings.development
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONIOENCODING=UTF-8
-    command: bash -c  "./scripts/wait-for-prestashop.sh; python manage.py runserver 0.0.0.0:8000"
+      - TRAVIS_JOB_ID='$TRAVIS_JOB_ID'
+      - TRAVIS_BRANCH='$TRAVIS_BRANCH'
+    command: bash -c  "./scripts/wait-for-prestashop.sh && python manage.py runserver 0.0.0.0:8000 && python manage.py makemigrations && python manage.py migrate && coverage run -m pytest"
+    ports:
+      - "8000:8000"
     volumes:
       - ./:/app
     networks:
@@ -17,6 +21,7 @@ services:
       - djangonet
     depends_on:
       - db
+      - prestashop
   db:
     image: mysql:5.7
     environment:

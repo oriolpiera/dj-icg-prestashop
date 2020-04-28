@@ -5,7 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist,MultipleObjectsReturned
 import datetime
 import logging
 
-class Controller(object):
+class ControllerICGProducts(object):
     def __init__(self, url_base=''):
         self._url_base = url_base
         self.logger = logging.getLogger(__name__)
@@ -134,7 +134,7 @@ class Controller(object):
             comb = self.get_create_or_update_combination(prod, icg_color, icg_talla, discontinued, ean13)
 
 
-class ControllerPrices(object):
+class ControllerICGPrices(object):
     def __init__(self, url_base=''):
         self._url_base = url_base
         self.logger = logging.getLogger(__name__)
@@ -193,7 +193,7 @@ class ControllerPrices(object):
 
 
 
-class ControllerStocks(object):
+class ControllerICGStocks(object):
     def __init__(self, url_base=''):
         self._url_base = url_base
         self.logger = logging.getLogger(__name__)

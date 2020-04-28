@@ -155,6 +155,18 @@ class TestControllerPrestashop:
         assert man.ps_id
         assert man_ps1['manufacturer'] == man_ps2['manufacturer']
 
+    def test_createOneManufacturerGetOneUpdateOne_ok(self):
+        man = ManufacturerFactory()
+
+        man_ps1 = self.p.get_or_create_manufacturer(man)
+        man.icg_name = 'other_name'
+        man_ps2 = self.p.get_or_create_manufacturer(man)
+
+        assert man.ps_id
+        assert man_ps1['manufacturer'] == man_ps2['manufacturer']
+        #assert man_ps2.icg_name == 'other_name'
+
+
     def test_createTwoManufacturers_ok(self):
         man1 = ManufacturerFactory()
         man2 = ManufacturerFactory()
@@ -316,18 +328,23 @@ class TestControllerPrestashop:
 
         prod = ProductFactory.create_batch(2)
         assert len(models.Product.objects.all()) is 2
+        assert len(models.ProductOption.objects.all()) is 0
 
         self.p.carregaNous()
 
         assert len(models.Manufacturer.objects.filter(updated = True)) is 0
+        assert len(models.Manufacturer.objects.exclude(ps_id = 0)) is 3
         assert len(models.Product.objects.filter(updated = True)) is 0
+        assert len(models.Product.objects.exclude(ps_id = 0)) is 2
+        assert len(models.ProductOption.objects.filter(updated = True)) is 0
+        assert len(models.ProductOption.objects.exclude(ps_id = 0)) is 4
  
 
 @pytest.mark.django_db
-class TestControllerICG:
+class TestControllerICGProducts:
     @classmethod
     def setup_class(self):
-        self.c = controller.Controller()
+        self.c = controller.ControllerICGProducts()
 
     def test_saveNewProducts(self):
         self.c.saveNewProducts()
@@ -407,7 +424,6 @@ class TestControllerICG:
         assert prod.icg_name == "Caja Témpera ArtCreation"
 
     def test_get_create_or_update_product_createTwo(self):
-        c = controller.Controller()
         man = ManufacturerFactory()
 
         prod1 = self.c.get_create_or_update_product(
@@ -444,7 +460,6 @@ class TestControllerICG:
         assert len(prod_list) is 2
         assert po1.pk is po3.pk
         assert po2.pk is po4.pk
-
 
     def test_get_create_or_update_combination_createOne(self):
         prod = ProductFactory()
@@ -497,13 +512,15 @@ class TestControllerICG:
 
 
 @pytest.mark.django_db
-class TestControllerPrices:
+class TestControllerICGPrices:
+    @classmethod
+    def setup_class(self):
+        self.c = controller.ControllerICGPrices()
 
     def test_get_create_or_update_price_createOne(self):
-        c = controller.ControllerPrices()
         comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
 
-        price = c.get_create_or_update_price(comb, "15", "21", "14.12")
+        price = self.c.get_create_or_update_price(comb, "15", "21", "14.12")
 
         price_list = models.Price.objects.all()
         assert len(price_list) is 1
@@ -512,11 +529,10 @@ class TestControllerPrices:
         assert eval(price.dto_percent) == 15
 
     def test_get_create_or_update_price_createOneGetOne(self):
-        c = controller.ControllerPrices()
         comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
 
-        price1 = c.get_create_or_update_price(comb, "15", "21", "14.12")
-        price2 = c.get_create_or_update_price(comb, "15", "21", "14.12")
+        price1 = self.c.get_create_or_update_price(comb, "15", "21", "14.12")
+        price2 = self.c.get_create_or_update_price(comb, "15", "21", "14.12")
 
         price = models.Price.objects.get(combination_id = comb)
         price_list = models.Price.objects.all()
@@ -524,11 +540,10 @@ class TestControllerPrices:
         assert price1.pk is price2.pk
 
     def test_get_create_or_update_price_createOneUpdateOne(self):
-        c = controller.ControllerPrices()
         comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
 
-        price1 = c.get_create_or_update_price(comb, "15", "21", "14.12")
-        price2 = c.get_create_or_update_price(comb, "15", "16", "13.12")
+        price1 = self.c.get_create_or_update_price(comb, "15", "21", "14.12")
+        price2 = self.c.get_create_or_update_price(comb, "15", "16", "13.12")
 
         price = models.Price.objects.get(combination_id = comb)
         price_list = models.Price.objects.all()
@@ -539,13 +554,12 @@ class TestControllerPrices:
         assert price.dto_percent == 15
 
     def test_get_create_or_update_price_createTwo(self):
-        c = controller.ControllerPrices()
         prod = ProductFactory()
         comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id = prod)
         comb2 = CombinationFactory(icg_talla="1", icg_color="***", product_id = prod)
 
-        price1 = c.get_create_or_update_price(comb1, "15", "21", "14.12")
-        price2 = c.get_create_or_update_price(comb2, "15", "16", "13.12")
+        price1 = self.c.get_create_or_update_price(comb1, "15", "21", "14.12")
+        price2 = self.c.get_create_or_update_price(comb2, "15", "16", "13.12")
 
         price_list = models.Price.objects.all()
         prod_list = models.Product.objects.all()
@@ -554,8 +568,6 @@ class TestControllerPrices:
         assert price1.pk is not price2.pk
 
     def test_saveNewPrices(self):
-        c = controller.ControllerPrices()
-
         comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
         comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7499)
         prod3 = ProductFactory(icg_id = 7500)
@@ -570,7 +582,7 @@ class TestControllerPrices:
         comb1 = CombinationFactory(icg_talla="S.150ML", icg_color="***", product_id=prod6)
         comb1 = CombinationFactory(icg_talla="S.400ML", icg_color="***", product_id=prod6)
 
-        c.saveNewPrices()
+        self.c.saveNewPrices()
 
         prod_list = models.Product.objects.all()
         man_list = models.Manufacturer.objects.all()
@@ -582,23 +594,24 @@ class TestControllerPrices:
 
 @pytest.mark.django_db
 class TestControllerStocks:
+    @classmethod
+    def setup_class(self):
+        self.c = controller.ControllerICGStocks()
 
     def test_get_create_or_update_stock_createOne(self):
-        c = controller.ControllerStocks()
         comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
 
-        stock = c.get_create_or_update_stock(comb, "15")
+        stock = self.c.get_create_or_update_stock(comb, "15")
 
         stock_list = models.Stock.objects.all()
         assert len(stock_list) is 1
         assert eval(stock.icg_stock) == 15
 
     def test_get_create_or_update_stock_createOneGetOne(self):
-        c = controller.ControllerStocks()
         comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
 
-        stock1 = c.get_create_or_update_stock(comb, "15")
-        stock2 = c.get_create_or_update_stock(comb, "15")
+        stock1 = self.c.get_create_or_update_stock(comb, "15")
+        stock2 = self.c.get_create_or_update_stock(comb, "15")
 
         stock = models.Stock.objects.get(combination_id = comb)
         stock_list = models.Stock.objects.all()
@@ -606,11 +619,10 @@ class TestControllerStocks:
         assert stock1.pk is stock2.pk
 
     def test_get_create_or_update_stock_createOneUpdateOne(self):
-        c = controller.ControllerStocks()
         comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
 
-        stock1 = c.get_create_or_update_stock(comb, "15")
-        stock2 = c.get_create_or_update_stock(comb, "13")
+        stock1 = self.c.get_create_or_update_stock(comb, "15")
+        stock2 = self.c.get_create_or_update_stock(comb, "13")
 
         stock = models.Stock.objects.get(combination_id = comb)
         stock_list = models.Stock.objects.all()
@@ -619,13 +631,12 @@ class TestControllerStocks:
         assert stock.icg_stock == 13
 
     def test_get_create_or_update_stock_createTwo(self):
-        c = controller.ControllerStocks()
         prod = ProductFactory()
         comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id = prod)
         comb2 = CombinationFactory(icg_talla="1", icg_color="***", product_id = prod)
 
-        stock1 = c.get_create_or_update_stock(comb1, "15")
-        stock2 = c.get_create_or_update_stock(comb2, "112")
+        stock1 = self.c.get_create_or_update_stock(comb1, "15")
+        stock2 = self.c.get_create_or_update_stock(comb2, "112")
 
         stock_list = models.Stock.objects.all()
         prod_list = models.Product.objects.all()
@@ -634,8 +645,6 @@ class TestControllerStocks:
         assert stock1.pk is not stock2.pk
 
     def test_saveNewStocks(self):
-        c = controller.ControllerStocks()
-
         CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
         prod3 = ProductFactory(icg_id = 7500)
         CombinationFactory(icg_talla="12", icg_color="CAR 12 ML", product_id__icg_id=7500)
@@ -649,7 +658,7 @@ class TestControllerStocks:
         CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7506)
         CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7509)
 
-        c.saveNewStocks()
+        self.c.saveNewStocks()
 
         prod_list = models.Product.objects.all()
         comb_list = models.Combination.objects.all()
