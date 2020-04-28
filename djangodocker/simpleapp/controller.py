@@ -59,6 +59,21 @@ class Controller(object):
 
         return prod
 
+    def get_create_or_update_product_option(self, ps_name, product):
+        #Product Option (Grup talla color)
+        po = None
+        po_new = models.ProductOption.create(ps_name, product)
+        try:
+            po_old = models.ProductOption.objects.get(ps_name = ps_name, product_id = product)
+            print("Hem fet un GET! " + str(ps_name))
+            return po_old
+        except ObjectDoesNotExist:
+            po_new.save()
+            self.logger.info("Producte option creat: %s", str(product.icg_id))
+            return po_new
+        except MultipleObjectsReturned:
+            self.logger.error("Product option torna més d'un: %s", str(models.ProductOption.objects.filter(ps_name = ps_name, product_id = product)))
+
 
     def get_create_or_update_combination(self, product_id, icg_color, icg_talla, discontinued, ean13):
         #Combination
@@ -114,6 +129,7 @@ class Controller(object):
 
             prod = self.get_create_or_update_product(icg_id, icg_reference, icg_name,
                 visible_web, man)
+
 
             comb = self.get_create_or_update_combination(prod, icg_color, icg_talla, discontinued, ean13)
 

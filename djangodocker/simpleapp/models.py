@@ -77,15 +77,27 @@ class Product(models.Model):
 
     def compare(self, product):
         result = {}
-        if self.icg_reference != product['product']['reference']:
-            result['icg_reference'] = product['product']['reference']
-        if self.manufacturer.ps_id != product['product']['id_manufacturer']:
-            result['manufacturer'] = product['product']['id_manufacturer']
-        if self.icg_name != product['product']['name']['language']['value']:
-            result['icg_name'] = product['product']['name']['language']['value']
-        if self.visible_web != product['product']['active']:
-            result['visible_web'] = product['product']['active']
-        return result
+        if hasattr(product, 'icg_id'):
+            if self.icg_reference != product.icg_reference:
+                result['icg_reference'] = product.icg_reference
+            if self.manufacturer != product.manufacturer:
+                result['manufacturer'] = product.manufacturer.icg_id
+            if self.icg_name != product.icg_name:
+                result['icg_name'] = product.icg_name
+            if self.visible_web != product.visible_web:
+                result['visible_web'] = "0"
+            return result
+
+        if isinstance(product, dict):
+            if self.icg_reference != product['product']['reference']:
+                result['icg_reference'] = product['product']['reference']
+            if self.manufacturer.ps_id != product['product']['id_manufacturer']:
+                result['manufacturer'] = product['product']['id_manufacturer']
+            if self.icg_name != product['product']['name']['language']['value']:
+                result['icg_name'] = product['product']['name']['language']['value']
+            if self.visible_web != product['product']['active']:
+                result['visible_web'] = product['product']['active']
+            return result
 
     def prestashop_object(self):
         return {
@@ -280,11 +292,17 @@ class ProductOption(models.Model):
     product_id = models.ForeignKey('Product', on_delete=models.CASCADE)
     created_date = models.DateTimeField(default=timezone.now)
     modified_date = models.DateTimeField(blank=True, null=True)
-    updated = models.BooleanField(default=False)
+    updated = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = 'product_option'
         verbose_name_plural = 'products_options'
+
+    @classmethod
+    def create(cls, ps_name, product):
+        ps_icg_type = ps_name.split('_')[1]
+        po = cls(ps_name = ps_name, ps_icg_type = ps_icg_type, product_id = product)
+        return po
 
     def __str__(self):
         return "Producte combinacio %d del producte amb ref %s i de nom  %s" % (self.ps_id, self.product_id.icg_reference, self.ps_name)

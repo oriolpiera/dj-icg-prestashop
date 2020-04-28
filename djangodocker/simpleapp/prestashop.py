@@ -4,6 +4,7 @@ from . import models, mssql
 from django.core.exceptions import ObjectDoesNotExist,MultipleObjectsReturned
 import datetime
 import logging
+from . import controller
 
 class ControllerPrestashop(object):
     def __init__(self, url_base=''):
@@ -33,6 +34,9 @@ class ControllerPrestashop(object):
     def get_or_create_product(self, product):
         if product.ps_id:
             return self._api.get('products', resource_id=product.ps_id)
+        if not product.visible_web:
+            return {}
+
         p_data = self._api.get('products', options={'schema': 'blank'})
         p_data['product']['id_manufacturer'] = product.manufacturer.ps_id
         p_data['product']['reference'] = product.icg_reference
@@ -46,6 +50,11 @@ class ControllerPrestashop(object):
         product.ps_id = int(response['prestashop']['product']['id'])
         product.updated = False
         product.save()
+
+
+        #Create product options dj
+        self.get_or_create_product_options_django(product)
+
         return self._api.get('products', resource_id=product.ps_id)
 
     def get_or_create_combination(self, comb):
@@ -57,6 +66,14 @@ class ControllerPrestashop(object):
         comb.updated = False
         comb.save()
         return comb
+
+    def get_or_create_product_options_django(self, product):
+        c = controller.Controller()
+        ps_name = str(str(product.ps_id) + "_" + "talla")
+        c.get_create_or_update_product_option(ps_name, product)
+
+        ps_name = str(str(product.ps_id) + "_" + "color")
+        c.get_create_or_update_product_option(ps_name, product)
 
     def get_or_create_product_options(self, po):
         if po.ps_id:
@@ -140,6 +157,7 @@ class ControllerPrestashop(object):
         prod_dj.save()
 
     def carregaNous(self):
+
         updated_manufacturers = models.Manufacturer.objects.filter(updated = True)
         for man in updated_manufacturers:
             m = self.get_or_create_manufacturer(man)
@@ -153,3 +171,9 @@ class ControllerPrestashop(object):
             updated = prod.compare(p)
             if updated:
                 self.updated_product(prod, p, updated)
+
+        updated_product_options = models.ProductOption.objects.filter(updated = True)
+        for po in updated_product_options:
+            p = self.get_or_create_product_options(po)
+
+# vim: et ts=4 sw=4

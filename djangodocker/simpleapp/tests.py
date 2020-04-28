@@ -128,7 +128,7 @@ class TestSimpleApp:
 
 
 @pytest.mark.django_db
-class TestPrestashop:
+class TestControllerPrestashop:
 
     @classmethod
     def setup_class(self):
@@ -174,6 +174,14 @@ class TestPrestashop:
 
         assert prod.ps_id
         assert prod_ps['product']['id']
+
+    def test_createOneProduct_noCreate(self):
+        prod = ProductFactory(visible_web=False)
+
+        prod_ps = self.p.get_or_create_product(prod)
+
+        assert not prod.ps_id
+        assert prod_ps == {}
 
     def test_createOneProductGetOne_ok(self):
         prod = ProductFactory()
@@ -316,83 +324,80 @@ class TestPrestashop:
  
 
 @pytest.mark.django_db
-class TestController:
-    def test_saveNewProduts(self):
-        c = controller.Controller()
+class TestControllerICG:
+    @classmethod
+    def setup_class(self):
+        self.c = controller.Controller()
 
-        c.saveNewProducts()
+    def test_saveNewProducts(self):
+        self.c.saveNewProducts()
 
         prod_list = models.Product.objects.all()
         man_list = models.Manufacturer.objects.all()
         comb_list = models.Combination.objects.all()
+        po_list = models.ProductOption.objects.all()
         assert len(prod_list) is 6
         assert len(man_list) is 4
         assert len(comb_list) is 10
 
     def test_get_create_or_update_manufacturer_createOne(self):
-        c = controller.Controller()
-
-        man = c.get_create_or_update_manufacturer(14000, "ARTECREATION")
+        man = self.c.get_create_or_update_manufacturer(14000, "ARTECREATION")
 
         man_list = models.Manufacturer.objects.all()
         assert len(man_list) is 1
 
     def test_get_create_or_update_manufacturer_createOneGetOne(self):
-        c = controller.Controller()
-
-        man1 = c.get_create_or_update_manufacturer(14000, "ARTECREATION")
-        man2 = c.get_create_or_update_manufacturer(14000, "ARTECREATION")
+        man1 = self.c.get_create_or_update_manufacturer(14000, "ARTECREATION")
+        man2 = self.c.get_create_or_update_manufacturer(14000, "ARTECREATION")
 
         man_list = models.Manufacturer.objects.all()
         assert len(man_list) is 1
         assert man1.pk is man2.pk
 
     def test_get_create_or_update_manufacturer_createOneUpdateOne(self):
-        c = controller.Controller()
-
-        man1 = c.get_create_or_update_manufacturer(14000, "ARTECREATION")
-        man2 = c.get_create_or_update_manufacturer(14000, "ARTCREATION")
+        man1 = self.c.get_create_or_update_manufacturer(14000, "ARTECREATION")
+        man2 = self.c.get_create_or_update_manufacturer(14000, "ARTCREATION")
 
         man_list = models.Manufacturer.objects.all()
         assert len(man_list) is 1
         assert man1.pk is man2.pk
 
     def test_get_create_or_update_manufacturer_createTwo(self):
-        c = controller.Controller()
-
-        man1 = c.get_create_or_update_manufacturer(14000, "ARTECREATION")
-        man2 = c.get_create_or_update_manufacturer(15000, "COBRA")
+        man1 = self.c.get_create_or_update_manufacturer(14000, "ARTECREATION")
+        man2 = self.c.get_create_or_update_manufacturer(15000, "COBRA")
 
         man_list = models.Manufacturer.objects.all()
         assert len(man_list) is 2
         assert man1.pk is not man2.pk
 
     def test_get_create_or_update_product_createOne(self):
-        c = controller.Controller()
         man = ManufacturerFactory()
 
-        prod = c.get_create_or_update_product(7500, "0930095", "Caja Témpera ArtCreation", True, man)
+        prod = self.c.get_create_or_update_product(
+            7500, "0930095", "Caja Témpera ArtCreation", True, man)
 
         prod_list = models.Product.objects.all()
         assert len(prod_list) is 1
 
     def test_get_create_or_update_product_createOneGetOne(self):
-        c = controller.Controller()
         man = ManufacturerFactory()
 
-        prod1 = c.get_create_or_update_product(7500, "0930095", "Caja Témpera ArtCreation", True, man)
-        prod2 = c.get_create_or_update_product(7500, "0930095", "Caja Témpera ArtCreation", True, man)
+        prod1 = self.c.get_create_or_update_product(
+            7500, "0930095", "Caja Témpera ArtCreation", True, man)
+        prod2 = self.c.get_create_or_update_product(
+            7500, "0930095", "Caja Témpera ArtCreation", True, man)
 
         prod_list = models.Product.objects.all()
         assert len(prod_list) is 1
         assert prod1.pk is prod2.pk
 
     def test_get_create_or_update_product_createOneUpdateOne(self):
-        c = controller.Controller()
         man = ManufacturerFactory()
 
-        prod1 = c.get_create_or_update_product(7500, "09300956", "Caja Tempera ArtCreation", True, man)
-        prod2 = c.get_create_or_update_product(7500, "0930095", "Caja Témpera ArtCreation", False, man)
+        prod1 = self.c.get_create_or_update_product(
+            7500, "09300956", "Caja Tempera ArtCreation", True, man)
+        prod2 = self.c.get_create_or_update_product(
+            7500, "0930095", "Caja Témpera ArtCreation", False, man)
 
         prod_list = models.Product.objects.all()
         prod = models.Product.objects.get(icg_id = 7500)
@@ -405,40 +410,70 @@ class TestController:
         c = controller.Controller()
         man = ManufacturerFactory()
 
-        prod1 = c.get_create_or_update_product(7500, "0930095", "Caja Tempera ArtCreation", True, man)
-        prod2 = c.get_create_or_update_product(7501, "0930096", "Caballete ArtCreation", False, man)
+        prod1 = self.c.get_create_or_update_product(
+            7500, "0930095", "Caja Tempera ArtCreation", True, man)
+        prod2 = self.c.get_create_or_update_product(
+            7501, "0930096", "Caballete ArtCreation", False, man)
 
         prod_list = models.Product.objects.all()
         assert len(prod_list) is 2
         assert prod1.pk is not prod2.pk
 
+    def test_get_create_or_update_product_option_createTwo(self):
+        prod = ProductFactory(ps_id = 5)
+
+        po = self.c.get_create_or_update_product_option(
+            str(str(prod.ps_id) + "_" + "talla"), prod)
+        po = self.c.get_create_or_update_product_option(
+            str(str(prod.ps_id) + "_" + "color"), prod)
+        prod_list = models.ProductOption.objects.all()
+        assert len(prod_list) is 2
+
+    def test_get_create_or_update_product_option_createTwoGetTwo(self):
+        prod = ProductFactory(ps_id = 5)
+
+        po1 = self.c.get_create_or_update_product_option(
+            str(str(prod.ps_id) + "_" + "talla"), prod)
+        po2 = self.c.get_create_or_update_product_option(
+            str(str(prod.ps_id) + "_" + "color"), prod)
+        po3 = self.c.get_create_or_update_product_option(
+            str(str(prod.ps_id) + "_" + "talla"), prod)
+        po4 = self.c.get_create_or_update_product_option(
+            str(str(prod.ps_id) + "_" + "color"), prod)
+        prod_list = models.ProductOption.objects.all()
+        assert len(prod_list) is 2
+        assert po1.pk is po3.pk
+        assert po2.pk is po4.pk
+
 
     def test_get_create_or_update_combination_createOne(self):
-        c = controller.Controller()
         prod = ProductFactory()
 
-        comb = c.get_create_or_update_combination(prod, "12", "12 ML", False, "8712079332730")
+        comb = self.c.get_create_or_update_combination(
+            prod, "12", "12 ML", False, "8712079332730")
 
         comb_list = models.Combination.objects.all()
         assert len(comb_list) is 1
 
     def test_get_create_or_update_combination_createOneGetOne(self):
-        c = controller.Controller()
         prod = ProductFactory()
 
-        comb1 = c.get_create_or_update_combination(prod, "12", "12 ML", False, "8712079332730")
-        comb2 = c.get_create_or_update_combination(prod, "12", "12 ML", False, "8712079332730")
+        comb1 = self.c.get_create_or_update_combination(
+            prod, "12", "12 ML", False, "8712079332730")
+        comb2 = self.c.get_create_or_update_combination(
+            prod, "12", "12 ML", False, "8712079332730")
 
         comb_list = models.Combination.objects.all()
         assert len(comb_list) is 1
         assert comb1.pk is comb2.pk
 
     def test_get_create_or_update_combination_createOneUpdateOne(self):
-        c = controller.Controller()
         prod = ProductFactory()
 
-        comb1 = c.get_create_or_update_combination(prod, "12", "12 ML", False, "8712079332730")
-        comb2 = c.get_create_or_update_combination(prod, "12", "12 ML", True, "8712079332731")
+        comb1 = self.c.get_create_or_update_combination(
+            prod, "12", "12 ML", False, "8712079332730")
+        comb2 = self.c.get_create_or_update_combination(
+            prod, "12", "12 ML", True, "8712079332731")
 
         comb_list = models.Combination.objects.all()
         comb = models.Combination.objects.get(icg_talla = "12 ML", icg_color="12", product_id = prod )
@@ -448,11 +483,12 @@ class TestController:
         assert comb.discontinued == True
 
     def test_get_create_or_update_combination_createTwo(self):
-        c = controller.Controller()
         prod = ProductFactory()
 
-        comb1 = c.get_create_or_update_combination(prod, "12", "12 ML", False, "8712079332730")
-        comb2 = c.get_create_or_update_combination(prod, "12", "120 ML", True, "8712079332731")
+        comb1 = self.c.get_create_or_update_combination(
+            prod, "12", "12 ML", False, "8712079332730")
+        comb2 = self.c.get_create_or_update_combination(
+            prod, "12", "120 ML", True, "8712079332731")
 
         comb_list = models.Combination.objects.all()
         assert len(comb_list) is 2
