@@ -70,10 +70,10 @@ class ControllerPrestashop(object):
     def get_or_create_product_options_django(self, product):
         c = controller.ControllerICGProducts()
         ps_name = str(str(product.ps_id) + "_" + "talla")
-        c.get_create_or_update_product_option(ps_name, product)
+        c.get_create_or_update('ProductOption', {'ps_name' : ps_name, 'product_id': product}, {})
 
         ps_name = str(str(product.ps_id) + "_" + "color")
-        c.get_create_or_update_product_option(ps_name, product)
+        c.get_create_or_update('ProductOption', {'ps_name' : ps_name, 'product_id': product}, {})
 
     def get_or_create_product_options(self, po):
         if po.ps_id:

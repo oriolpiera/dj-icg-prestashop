@@ -395,80 +395,63 @@ class TestControllerICGProducts:
 
     def test_get_create_or_update_ProductOk(self):
         # Create one
-        man1 = self.c.get_create_or_update('Manufacturer',
-            {'icg_id': 14000},{'icg_name': 'ARTECREATION'})
-        man_list = models.Manufacturer.objects.all()
-        assert len(man_list) is 1
-
-    def test_get_create_or_update_product_createOne(self):
         man = ManufacturerFactory()
-
-        prod = self.c.get_create_or_update_product(
-            7500, "0930095", "Caja Témpera ArtCreation", True, man)
-
+        prod1 = self.c.get_create_or_update('Product', {'icg_id': 7500},
+            {'icg_reference': '0930095', 'icg_name': 'Caja Tempera ArtCreation',
+             'visible_web': True, 'manufacturer': man})
         prod_list = models.Product.objects.all()
         assert len(prod_list) is 1
 
-    def test_get_create_or_update_product_createOneGetOne(self):
-        man = ManufacturerFactory()
-
-        prod1 = self.c.get_create_or_update_product(
-            7500, "0930095", "Caja Témpera ArtCreation", True, man)
-        prod2 = self.c.get_create_or_update_product(
-            7500, "0930095", "Caja Témpera ArtCreation", True, man)
-
+        # Get one
+        prod2 = self.c.get_create_or_update('Product', {'icg_id': 7500},
+            {'icg_reference': '0930095', 'icg_name': 'Caja Témpera ArtCreation',
+             'visible_web': True, 'manufacturer': man})
         prod_list = models.Product.objects.all()
         assert len(prod_list) is 1
         assert prod1.pk is prod2.pk
 
-    def test_get_create_or_update_product_createOneUpdateOne(self):
-        man = ManufacturerFactory()
 
-        prod1 = self.c.get_create_or_update_product(
-            7500, "09300956", "Caja Tempera ArtCreation", True, man)
-        prod2 = self.c.get_create_or_update_product(
-            7500, "0930095", "Caja Témpera ArtCreation", False, man)
-
+        # Update one
+        assert prod1.updated
+        prod1.updated = False
+        prod1.save()
+        assert not prod1.updated
+        prod3 = self.c.get_create_or_update('Product', {'icg_id': 7500},
+            {'icg_reference': '0930096', 'icg_name': 'Caja Témpera ArteCreation',
+             'visible_web': False, 'manufacturer': man})
         prod_list = models.Product.objects.all()
+        assert len(prod_list) is 1
+        assert prod1.pk is prod3.pk
         prod = models.Product.objects.get(icg_id = 7500)
-        assert len(prod_list) is 1
-        assert prod1.pk is prod2.pk
-        assert prod.icg_reference == "0930095"
-        assert prod.icg_name == "Caja Témpera ArtCreation"
+        assert prod.icg_name == 'Caja Témpera ArteCreation'
+        assert prod.updated
+        assert not prod.visible_web
+        assert prod.fields_updated == "{'icg_name': 'Caja Témpera ArteCreation', 'icg_reference': '0930096', 'visible_web': '0'}"
 
-    def test_get_create_or_update_product_createTwo(self):
-        man = ManufacturerFactory()
-
-        prod1 = self.c.get_create_or_update_product(
-            7500, "0930095", "Caja Tempera ArtCreation", True, man)
-        prod2 = self.c.get_create_or_update_product(
-            7501, "0930096", "Caballete ArtCreation", False, man)
-
+        prod4 = self.c.get_create_or_update('Product', {'icg_id': 7501},
+            {'icg_reference': '0930099', 'icg_name': 'Óleo Cobra',
+             'visible_web': True, 'manufacturer': man})
         prod_list = models.Product.objects.all()
         assert len(prod_list) is 2
-        assert prod1.pk is not prod2.pk
 
-    def test_get_create_or_update_product_option_createTwo(self):
+    def test_get_create_or_update_ProductOptionOk(self):
+        # Create two
         prod = ProductFactory(ps_id = 5)
 
-        po = self.c.get_create_or_update_product_option(
-            str(str(prod.ps_id) + "_" + "talla"), prod)
-        po = self.c.get_create_or_update_product_option(
-            str(str(prod.ps_id) + "_" + "color"), prod)
+        po1 = self.c.get_create_or_update('ProductOption',
+            {'ps_name' : str(str(prod.ps_id) + "_" + "talla"), 'product_id': prod}, {})
+        po2 = self.c.get_create_or_update('ProductOption',
+            {'ps_name' : str(str(prod.ps_id) + "_" + "color"), 'product_id': prod}, {})
+
         prod_list = models.ProductOption.objects.all()
         assert len(prod_list) is 2
 
-    def test_get_create_or_update_product_option_createTwoGetTwo(self):
-        prod = ProductFactory(ps_id = 5)
+        # Create two Get two
+        po3 = self.c.get_create_or_update('ProductOption',
+            {'ps_name' : str(str(prod.ps_id) + "_" + "talla"), 'product_id': prod}, {})
+        po4 = self.c.get_create_or_update('ProductOption',
+            {'ps_name' : str(str(prod.ps_id) + "_" + "color"), 'product_id': prod}, {})
 
-        po1 = self.c.get_create_or_update_product_option(
-            str(str(prod.ps_id) + "_" + "talla"), prod)
-        po2 = self.c.get_create_or_update_product_option(
-            str(str(prod.ps_id) + "_" + "color"), prod)
-        po3 = self.c.get_create_or_update_product_option(
-            str(str(prod.ps_id) + "_" + "talla"), prod)
-        po4 = self.c.get_create_or_update_product_option(
-            str(str(prod.ps_id) + "_" + "color"), prod)
         prod_list = models.ProductOption.objects.all()
         assert len(prod_list) is 2
         assert po1.pk is po3.pk

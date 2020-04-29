@@ -30,45 +30,9 @@ class ControllerICGProducts(object):
             m_new.save()
             self.logger.info("Objecte creada %s", str(dj_object))
             return m_new
-
-
-    def get_create_or_update_product(self, icg_id, icg_reference, icg_name, visible_web, man):
-        p_new = models.Product(icg_id = icg_id, icg_reference = icg_reference,
-            icg_name = icg_name, visible_web = visible_web, manufacturer = man)
-        try:
-            p_old = models.Product.objects.get(icg_id = icg_id)
-            updated = p_old.compare(p_new)
-            if updated:
-                updated['fields_updated'] = updated.copy()
-                updated['updated'] = True
-                models.Product.objects.filter(pk=p_old.pk).update(**updated)
-                self.logger.info("Producte modificat: %s", str(updated))
-            return p_old
-        except ObjectDoesNotExist:
-            self.logger.info("Producte creat: %s", str(icg_id))
-            p_new.save()
-            p_old = p_new
-
-            return p_new
         except MultipleObjectsReturned:
-            self.logger.error("Producte torna més d'un: %s", str(models.Product.objects.filter(icg_id = icg_id)))
-
-
-    def get_create_or_update_product_option(self, ps_name, product):
-        #Product Option (Grup talla color)
-        po = None
-        po_new = models.ProductOption.create(ps_name, product)
-        try:
-            po_old = models.ProductOption.objects.get(ps_name = ps_name, product_id = product)
-            print("Hem fet un GET! " + str(ps_name))
-            return po_old
-        except ObjectDoesNotExist:
-            po_new.save()
-            self.logger.info("Producte option creat: %s", str(product.icg_id))
-            return po_new
-        except MultipleObjectsReturned:
-            self.logger.error("Product option torna més d'un: %s", str(models.ProductOption.objects.filter(ps_name = ps_name, product_id = product)))
-
+            self.logger.error("Objecte torna més d'un: %s", +
+                str(dj_object.objects.filter(**primary_key)))
 
     def get_create_or_update_combination(self, product_id, icg_color, icg_talla, discontinued, ean13):
         #Combination
@@ -123,9 +87,9 @@ class ControllerICGProducts(object):
                 {'icg_id': manufacturer_id}, {'icg_name': row[14] })
             man_pk = man.pk
 
-            prod = self.get_create_or_update_product(icg_id, icg_reference, icg_name,
-                visible_web, man)
-
+            prod = self.get_create_or_update('Product', {'icg_id': icg_id},
+                {'icg_reference': icg_reference, 'icg_name': icg_name,
+                'visible_web': visible_web, 'manufacturer': man}) 
 
             comb = self.get_create_or_update_combination(prod, icg_color, icg_talla, discontinued, ean13)
 

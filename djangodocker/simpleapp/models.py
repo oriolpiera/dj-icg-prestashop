@@ -329,6 +329,9 @@ class ProductOption(models.Model):
     def saved_in_prestashop(self):
         return ps_id
 
+    def compareICG(self, po):
+        return {}
+
 class ProductOptionValue(models.Model):
     icg_name = models.CharField(max_length=15, default='')
     ps_id = models.IntegerField(blank=True, null=True, default=0)
