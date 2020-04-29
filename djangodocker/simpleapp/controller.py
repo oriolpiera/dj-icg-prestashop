@@ -52,7 +52,6 @@ class ControllerICGProducts(object):
             manufacturer_id = row[13]
             discontinued = True if row[15] == 'T' else False
             
-
             man = self.get_create_or_update('Manufacturer', 
                 {'icg_id': manufacturer_id}, {'icg_name': row[14] })
 

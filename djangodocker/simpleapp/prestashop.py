@@ -29,7 +29,7 @@ class ControllerPrestashop(object):
         manufacturer.ps_name = manufacturer.icg_name
         manufacturer.updated = False
         manufacturer.save()
-        return response['prestashop']
+        return self._api.get('manufacturers', resource_id=manufacturer.ps_id)
 
     def get_or_create_product(self, product):
         if product.ps_id:
@@ -51,34 +51,40 @@ class ControllerPrestashop(object):
         product.updated = False
         product.save()
 
-
         #Create product options dj
-        self.get_or_create_product_options_django(product)
+        po_talla = self.get_or_create_product_options_django(product, 'talla')
+        po_color = self.get_or_create_product_options_django(product, 'color')
 
         return self._api.get('products', resource_id=product.ps_id)
 
     def get_or_create_combination(self, comb):
         if comb.ps_id:
-            self._api.get('combinations', resource_id=comb.ps_id)
-            return comb
+            return self._api.get('combinations', resource_id=comb.ps_id)
         response = self._api.add('combinations', comb.prestashop_object())
         comb.ps_id = int(response['prestashop']['combination']['id'])
         comb.updated = False
         comb.save()
-        return comb
 
-    def get_or_create_product_options_django(self, product):
+        # Create product option values
+        po_talla = self.get_or_create_product_options_django(comb.product_id, 'talla')
+        po_color = self.get_or_create_product_options_django(comb.product_id, 'color')
+        talla = self.get_or_create_product_option_value_django(po_talla, comb.icg_talla)
+        color = self.get_or_create_product_option_value_django(po_color, comb.icg_color)
+
+        return self._api.get('combinations', resource_id=comb.ps_id)
+
+    def get_or_create_product_options_django(self, product, tipus):
         c = controller.ControllerICGProducts()
-        ps_name = str(str(product.ps_id) + "_" + "talla")
-        c.get_create_or_update('ProductOption', {'ps_name' : ps_name, 'product_id': product}, {})
+        ps_name = str(str(product.ps_id) + "_" + tipus)
+        return c.get_create_or_update('ProductOption', {'ps_name' : ps_name, 'product_id': product}, {})
 
-        ps_name = str(str(product.ps_id) + "_" + "color")
-        c.get_create_or_update('ProductOption', {'ps_name' : ps_name, 'product_id': product}, {})
+    def get_or_create_product_option_value_django(self, po, icg_name):
+        c = controller.ControllerICGProducts()
+        c.get_create_or_update('ProductOptionValue', {'po_id' : po, 'icg_name': icg_name}, {})
 
     def get_or_create_product_options(self, po):
         if po.ps_id:
-            self._api.get('product_options', resource_id=po.ps_id)
-            return po
+            return self._api.get('product_options', resource_id=po.ps_id)
         
         po.ps_name = str(po.product_id.ps_id) + "_" + po.ps_icg_type
         po.ps_public_name = str(po.product_id.ps_id) + "_" + po.ps_icg_type
@@ -94,12 +100,11 @@ class ControllerPrestashop(object):
         po.ps_id = int(response['prestashop']['product_option']['id'])
         po.updated = False
         po.save()
-        return po
+        return self._api.get('product_options', resource_id=po.ps_id)
 
     def get_or_create_product_option_value(self, pov):
         if pov.ps_id:
-            self._api.get('product_option_values', resource_id=pov.ps_id)
-            return pov
+            return self._api.get('product_option_values', resource_id=pov.ps_id)
  
         pov_data = self._api.get('product_option_values', options={'schema': 'blank'})
         pov_data['product_option_value']['id_attribute_group'] = pov.po_id.ps_id
@@ -109,12 +114,11 @@ class ControllerPrestashop(object):
         response = self._api.add('product_option_values', pov_data)
         pov.ps_id = int(response['prestashop']['product_option_value']['id'])
         pov.save()
-        return pov
+        return self._api.get('product_option_values', pov.ps_id)
 
     def get_or_create_specific_price(self, price):
         if price.ps_id:
-            self._api.get('specific_prices', resource_id=price.ps_id)
-            return price
+            return self._api.get('specific_prices', resource_id=price.ps_id)
 
         price_data = self._api.get('specific_prices', options={'schema': 'blank'})
         price_data['specific_price']['id_product'] = price.combination_id.product_id.ps_id
@@ -137,7 +141,7 @@ class ControllerPrestashop(object):
         price.ps_id = int(response['prestashop']['specific_price']['id'])
         price.updated = False
         price.save()
-        return price
+        return self._api.get('specific_prices', resource_id=price.ps_id)
 
     def update_manufacturer(self, man_dj, man_ps, updated):
         man_ps.update(man_dj.prestashop_object())
@@ -158,23 +162,46 @@ class ControllerPrestashop(object):
         prod_dj.save()
 
     def carregaNous(self):
-
+        ps_man = []
         updated_manufacturers = models.Manufacturer.objects.filter(updated = True)
         for man in updated_manufacturers:
             m = self.get_or_create_manufacturer(man)
+            ps_man.append(m['manufacturer']['id'])
             updated = man.compare(m)
             if updated:
                 self.update_manufacturer(man, m, updated)
 
+        ps_prod = []
         updated_products = models.Product.objects.filter(updated = True)
         for prod in updated_products:
             p = self.get_or_create_product(prod)
+            ps_prod.append(p['product']['id'])
             updated = prod.compare(p)
             if updated:
                 self.updated_product(prod, p, updated)
 
+        ps_po = []
         updated_product_options = models.ProductOption.objects.filter(updated = True)
         for po in updated_product_options:
             p = self.get_or_create_product_options(po)
+            ps_po.append(p['product_option']['id'])
+
+        ps_pov = []
+        updated_product_options_values = models.ProductOptionValue.objects.filter(updated = True)
+        for pov in updated_product_options_values:
+            p = self.get_or_create_product_option_value(pov)
+            ps_pov.append(p['product_option_value']['id'])
+
+        ps_comb = []
+        updated_comb = models.Combination.objects.filter(updated = True)
+        for comb in updated_comb:
+            c = self.get_or_create_combination(comb)
+            ps_comb.append(c['combination']['id'])
+            updated = comb.compare(c)
+            if updated:
+                self.updated_combination(comb, c, updated)
+
+        return {'ps_man': ps_man, 'ps_prod': ps_prod, 'ps_po': ps_po,
+            'ps_pov': ps_pov, 'ps_comb': ps_comb}
 
 # vim: et ts=4 sw=4
