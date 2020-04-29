@@ -2,7 +2,8 @@
 import prestapyt
 from . import models, mssql
 from django.core.exceptions import ObjectDoesNotExist,MultipleObjectsReturned
-import datetime
+from django.utils.timezone import now
+from datetime import datetime
 import logging
 
 class ControllerICGProducts(object):
@@ -11,53 +12,47 @@ class ControllerICGProducts(object):
         self.logger = logging.getLogger(__name__)
 
 
-    def get_create_or_update_manufacturer(self, manufacturer_id, manufacturer_name):
-        #Manufacturer exist
-        man = None
-        m_old = None
-        m_new = models.Manufacturer(icg_id = manufacturer_id,
-            icg_name = manufacturer_name)
+    def get_create_or_update(self, obj_name, primary_key, other_fields):
+        dj_object = getattr(models, obj_name)
+        create = dict(primary_key, **other_fields)
+        m_new = dj_object(**create)
         try:
-            m_old = models.Manufacturer.objects.get(icg_id = manufacturer_id)
-            man = m_old
+            m_old = dj_object.objects.get(**primary_key)
+            updated = m_old.compareICG(m_new)
+            if updated:
+                updated['fields_updated'] = updated.copy()
+                updated['updated'] = True
+                updated['modified_date'] = now()
+                dj_object.objects.filter(pk=m_old.pk).update(**updated)
+                self.logger.info("Objecte '%s' modificada: %s", str(dj_object), str(updated))
+            return m_old
         except ObjectDoesNotExist:
-            self.logger.info("Marca creada %s", str(manufacturer_id))
             m_new.save()
-            man = m_new
-
-        if m_old and m_old.icg_name != manufacturer_name:
-            self.logger.info("Canviem el nom de la Marca %s > %s" % (str(m_old.icg_name), str(manufacturer_name)))
-            m_old.icg_name = manufacturer_name
-            m_old.modified_date = datetime.datetime.now()
-            m_old.updated = True
-
-        return man
+            self.logger.info("Objecte creada %s", str(dj_object))
+            return m_new
 
 
     def get_create_or_update_product(self, icg_id, icg_reference, icg_name, visible_web, man):
-        #Product
-        prod = None
         p_new = models.Product(icg_id = icg_id, icg_reference = icg_reference,
             icg_name = icg_name, visible_web = visible_web, manufacturer = man)
         try:
             p_old = models.Product.objects.get(icg_id = icg_id)
-            prod_pk = p_old.pk
             updated = p_old.compare(p_new)
             if updated:
+                updated['fields_updated'] = updated.copy()
+                updated['updated'] = True
                 models.Product.objects.filter(pk=p_old.pk).update(**updated)
                 self.logger.info("Producte modificat: %s", str(updated))
-            prod = p_old
+            return p_old
         except ObjectDoesNotExist:
             self.logger.info("Producte creat: %s", str(icg_id))
             p_new.save()
             p_old = p_new
 
-            prod_pk = p_new.pk
-            prod = p_new
+            return p_new
         except MultipleObjectsReturned:
             self.logger.error("Producte torna més d'un: %s", str(models.Product.objects.filter(icg_id = icg_id)))
 
-        return prod
 
     def get_create_or_update_product_option(self, ps_name, product):
         #Product Option (Grup talla color)
@@ -124,7 +119,8 @@ class ControllerICGProducts(object):
             man_pk = None
             prod_pk = None
 
-            man = self.get_create_or_update_manufacturer(manufacturer_id, row[14])
+            man = self.get_create_or_update('Manufacturer', 
+                {'icg_id': manufacturer_id}, {'icg_name': row[14] })
             man_pk = man.pk
 
             prod = self.get_create_or_update_product(icg_id, icg_reference, icg_name,

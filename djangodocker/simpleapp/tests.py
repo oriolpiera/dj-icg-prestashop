@@ -357,35 +357,48 @@ class TestControllerICGProducts:
         assert len(man_list) is 4
         assert len(comb_list) is 10
 
-    def test_get_create_or_update_manufacturer_createOne(self):
-        man = self.c.get_create_or_update_manufacturer(14000, "ARTECREATION")
-
+    def test_get_create_or_update_ManufacturersOk(self):
+        # Create one
+        man1 = self.c.get_create_or_update('Manufacturer',
+            {'icg_id': 14000},{'icg_name': 'ARTECREATION'})
         man_list = models.Manufacturer.objects.all()
         assert len(man_list) is 1
 
-    def test_get_create_or_update_manufacturer_createOneGetOne(self):
-        man1 = self.c.get_create_or_update_manufacturer(14000, "ARTECREATION")
-        man2 = self.c.get_create_or_update_manufacturer(14000, "ARTECREATION")
-
-        man_list = models.Manufacturer.objects.all()
-        assert len(man_list) is 1
-        assert man1.pk is man2.pk
-
-    def test_get_create_or_update_manufacturer_createOneUpdateOne(self):
-        man1 = self.c.get_create_or_update_manufacturer(14000, "ARTECREATION")
-        man2 = self.c.get_create_or_update_manufacturer(14000, "ARTCREATION")
-
+        # Get one
+        man2 = self.c.get_create_or_update('Manufacturer',
+            {'icg_id': 14000},{'icg_name': 'ARTECREATION'})
         man_list = models.Manufacturer.objects.all()
         assert len(man_list) is 1
         assert man1.pk is man2.pk
 
-    def test_get_create_or_update_manufacturer_createTwo(self):
-        man1 = self.c.get_create_or_update_manufacturer(14000, "ARTECREATION")
-        man2 = self.c.get_create_or_update_manufacturer(15000, "COBRA")
+        # Update one
+        assert man1.updated
+        man1.updated = False
+        man1.save()
+        man3 = self.c.get_create_or_update('Manufacturer',
+            {'icg_id': 14000},{'icg_name': 'artcreation'})
+        man_list = models.Manufacturer.objects.all()
+        assert len(man_list) is 1
+        assert man1.pk is man3.pk
+        man = models.Manufacturer.objects.get(icg_id = 14000)
+        assert man.icg_name == "artcreation"
+        assert man.updated
+        assert man.fields_updated == "{'icg_name': 'artcreation'}"
 
+        # Creates other
+        man4 = self.c.get_create_or_update('Manufacturer',
+            {'icg_id': 15000},{'icg_name': 'COBRA'})
         man_list = models.Manufacturer.objects.all()
         assert len(man_list) is 2
-        assert man1.pk is not man2.pk
+        assert man1.pk is not man4.pk
+
+
+    def test_get_create_or_update_ProductOk(self):
+        # Create one
+        man1 = self.c.get_create_or_update('Manufacturer',
+            {'icg_id': 14000},{'icg_name': 'ARTECREATION'})
+        man_list = models.Manufacturer.objects.all()
+        assert len(man_list) is 1
 
     def test_get_create_or_update_product_createOne(self):
         man = ManufacturerFactory()

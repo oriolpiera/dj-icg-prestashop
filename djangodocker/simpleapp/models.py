@@ -11,9 +11,10 @@ class Manufacturer(models.Model):
     icg_name = models.CharField(max_length=100)
     ps_id = models.IntegerField(blank=True, null=True, default=0)
     ps_name = models.CharField(max_length=100, blank=True, default="")
-    created_date = models.DateTimeField(default=timezone.now)
-    modified_date = models.DateTimeField(blank=True, null=True)
+    created_date = models.DateTimeField(auto_now_add=True)
+    modified_date = models.DateTimeField(auto_now=True, blank=True, null=True)
     updated = models.BooleanField(default=True)
+    fields_updated = models.CharField(max_length=100, default="{}")
 
     class Meta:
         verbose_name = 'manufacturer'
@@ -21,6 +22,12 @@ class Manufacturer(models.Model):
 
     def saved_in_prestashop(self):
         return ps_id
+
+    def compareICG(self, man):
+        result = {}
+        if self.icg_name != man.icg_name:
+            result['icg_name'] = man.icg_name
+        return result
 
     def compare(self, man):
         result = {}
@@ -57,6 +64,7 @@ class Product(models.Model):
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
     visible_web = models.BooleanField(default=True)
+    fields_updated = models.CharField(max_length=200, default="{}")
 
 
     class Meta:
@@ -75,6 +83,18 @@ class Product(models.Model):
             icg_name=icg_name, manufacturer=manufacturer)
         return product
 
+    def compareICG(self, product):
+        result = {}
+        if self.icg_name != product.icg_name:
+            result['icg_name'] = product.icg_name
+        if self.icg_reference != product.icg_reference:
+            result['icg_reference'] = product.icg_reference
+        if self.manufacturer != product.manufacturer:
+            result['manufacturer'] = product.manufacturer.icg_id
+        if self.visible_web != product.visible_web:
+            result['visible_web'] = "0"
+        return result
+
     def compare(self, product):
         result = {}
         if hasattr(product, 'icg_id'):
@@ -86,9 +106,7 @@ class Product(models.Model):
                 result['icg_name'] = product.icg_name
             if self.visible_web != product.visible_web:
                 result['visible_web'] = "0"
-            return result
-
-        if isinstance(product, dict):
+        elif isinstance(product, dict):
             if self.icg_reference != product['product']['reference']:
                 result['icg_reference'] = product['product']['reference']
             if self.manufacturer.ps_id != product['product']['id_manufacturer']:
@@ -97,7 +115,8 @@ class Product(models.Model):
                 result['icg_name'] = product['product']['name']['language']['value']
             if self.visible_web != product['product']['active']:
                 result['visible_web'] = product['product']['active']
-            return result
+
+        return result
 
     def prestashop_object(self):
         return {
