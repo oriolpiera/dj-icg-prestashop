@@ -196,16 +196,21 @@ class Combination(models.Model):
             }
         }
 
-    def compare(self, product):
+    def compare(self, comb):
         result = {}
-        if self.ean13 != product.ean13:
-            result['ean13'] = product.ean13
-        if self.discontinued != product.discontinued:
-            result['discontinued'] = product.discontinued
+        if self.ean13 != comb['combination']['ean13']:
+            result['ean13'] = comb['combination']['ean13']
+        if self.discontinued:
+            result['discontinued'] = True
         return result
 
     def compareICG(self, comb):
-        return self.compare(comb)
+        result = {}
+        if self.ean13 != comb.ean13:
+            result['ean13'] = comb.ean13
+        if self.discontinued != comb.discontinued:
+            result['discontinued'] = comb.discontinued
+        return result
 
 class Stock(models.Model):
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE)
@@ -343,7 +348,7 @@ class ProductOptionValue(models.Model):
     po_id = models.ForeignKey('ProductOption', on_delete=models.CASCADE)
     created_date = models.DateTimeField(default=timezone.now)
     modified_date = models.DateTimeField(blank=True, null=True)
-    updated = models.BooleanField(default=False)
+    updated = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = 'product_option_value'

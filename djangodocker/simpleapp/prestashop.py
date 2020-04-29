@@ -80,7 +80,7 @@ class ControllerPrestashop(object):
 
     def get_or_create_product_option_value_django(self, po, icg_name):
         c = controller.ControllerICGProducts()
-        c.get_create_or_update('ProductOptionValue', {'po_id' : po, 'icg_name': icg_name}, {})
+        return c.get_create_or_update('ProductOptionValue', {'po_id' : po, 'icg_name': icg_name}, {})
 
     def get_or_create_product_options(self, po):
         if po.ps_id:
@@ -103,6 +103,7 @@ class ControllerPrestashop(object):
         return self._api.get('product_options', resource_id=po.ps_id)
 
     def get_or_create_product_option_value(self, pov):
+        #import pudb;pu.db
         if pov.ps_id:
             return self._api.get('product_option_values', resource_id=pov.ps_id)
  
@@ -161,6 +162,15 @@ class ControllerPrestashop(object):
         prod_dj.updated = False
         prod_dj.save()
 
+    def updated_combination(self, comb_dj, comb_ps, updated):
+        if 'discontinued' in updated:
+            return self._api.delete('combinations', resource_ids=comb_dj.ps_id)
+        comb_ps.update(updated)
+        response = self._api.edit('combinations', prod_ps)
+        comb_dj.updated = False
+        comb_dj.save()
+        return response
+
     def carregaNous(self):
         ps_man = []
         updated_manufacturers = models.Manufacturer.objects.filter(updated = True)
@@ -199,7 +209,10 @@ class ControllerPrestashop(object):
             ps_comb.append(c['combination']['id'])
             updated = comb.compare(c)
             if updated:
+                #import pudb;pu.db
                 self.updated_combination(comb, c, updated)
+                #if deleted, ps_comb.remove
+
 
         return {'ps_man': ps_man, 'ps_prod': ps_prod, 'ps_po': ps_po,
             'ps_pov': ps_pov, 'ps_comb': ps_comb}

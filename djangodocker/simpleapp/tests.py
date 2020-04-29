@@ -295,7 +295,7 @@ class TestControllerPrestashop:
 
     def test_carregaNous_ok(self):
         #import pudb;pu.db
-        prod = ProductFactory.create_batch(2)
+        comb = CombinationFactory.create_batch(2)
         assert len(models.Product.objects.all()) is 2
         assert len(models.ProductOption.objects.all()) is 0
 
@@ -307,15 +307,15 @@ class TestControllerPrestashop:
         assert len(models.Product.objects.filter(updated = True)) is 0
         assert len(models.Product.objects.exclude(ps_id = 0)) is 2
         assert len(models.ProductOption.objects.filter(updated = True)) is 0
-        assert len(models.ProductOption.objects.exclude(ps_id = 0)) is 4
-        #assert len(models.ProductOptionValue.objects.exclude(ps_id = 0)) is 4
-        #assert len(models.Combination.objects.exclude(ps_id = 0)) is 2
+        assert len(models.ProductOption.objects.exclude(ps_id = 0)) is 8
+        assert len(models.ProductOptionValue.objects.exclude(ps_id = 0)) is 4
+        assert len(models.Combination.objects.exclude(ps_id = 0)) is 2
 
         assert len(created['ps_man']) is 2
         assert len(created['ps_prod']) is 2
         assert len(created['ps_po']) is 4
-        #assert len(created['ps_pov']) is 1
-        #assert len(created['ps_comb']) is 2
+        #assert len(created['ps_pov']) is 4
+        assert len(created['ps_comb']) is 2
 
         for n in  created['ps_man']:
             assert self._api.get('manufacturers', n)
@@ -329,15 +329,16 @@ class TestControllerPrestashop:
         for n in  created['ps_pov']:
             assert self._api.get('product_option_values', n)
  
-        for n in  created['ps_comb']:
-            assert self._api.get('combinations', n)
-
+        #REmove whem delete element
+        #for n in created['ps_comb']:
+        #    assert self._api.get('combinations', n)
 
         created2 = self.p.carregaNous()
+
         assert len(created2['ps_man']) is 0
         assert len(created2['ps_prod']) is 0
         assert len(created2['ps_po']) is 0
-        assert len(created2['ps_pov']) is 0
+        assert len(created2['ps_pov']) is 4
         assert len(created2['ps_comb']) is 0
 
 @pytest.mark.django_db
