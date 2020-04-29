@@ -13,7 +13,7 @@ before_script:
 - docker-compose up -d
 
 script:
-- docker-compose run -e DJANGO_SETTINGS_MODULE=djangodocker.settings.testing --no-deps --rm app bash -c "./scripts/wait-for-prestashop.sh && python manage.py makemigrations; python manage.py migrate; coverage run -m pytest;"
+- docker-compose run -e DJANGO_SETTINGS_MODULE=djangodocker.settings.testing -e TRAVIS_JOB_ID='$TRAVIS_JOB_ID' -e TRAVIS_BRANCH='$TRAVIS_BRANCH' --no-deps --rm app bash -c "./scripts/wait-for-prestashop.sh && python manage.py makemigrations; python manage.py migrate; coverage run -m pytest;"
 
 deploy:
   - provider: script

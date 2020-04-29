@@ -1,6 +1,6 @@
 # PyPSIntegration
-[![Build Status](https://travis-ci.org/oriolpiera/djangodocker.svg?branch=master)](https://travis-ci.org/oriolpiera/djangodocker)
-[![Coverage Status](https://coveralls.io/repos/github/oriolpiera/djangodocker/badge.svg?branch=master)](https://coveralls.io/github/oriolpiera/djangodocker?branch=master)
+[![Build Status](https://travis-ci.org/oriolpiera/dj-icg-prestashop.svg?branch=master)](https://travis-ci.org/oriolpiera/dj-icg-prestashop)
+[![Coverage Status](https://coveralls.io/repos/github/oriolpiera/dj-icg-prestashop/badge.svg?branch=master)](https://coveralls.io/github/oriolpiera/dj-icg-prestashop?branch=master)
 
 ## Run de tests
 
