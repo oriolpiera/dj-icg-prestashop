@@ -410,7 +410,6 @@ class TestControllerICGProducts:
         assert len(prod_list) is 1
         assert prod1.pk is prod2.pk
 
-
         # Update one
         assert prod1.updated
         prod1.updated = False
@@ -428,6 +427,7 @@ class TestControllerICGProducts:
         assert not prod.visible_web
         assert prod.fields_updated == "{'icg_name': 'Caja Témpera ArteCreation', 'icg_reference': '0930096', 'visible_web': '0'}"
 
+        # Creates other
         prod4 = self.c.get_create_or_update('Product', {'icg_id': 7501},
             {'icg_reference': '0930099', 'icg_name': 'Óleo Cobra',
              'visible_web': True, 'manufacturer': man})
@@ -437,12 +437,10 @@ class TestControllerICGProducts:
     def test_get_create_or_update_ProductOptionOk(self):
         # Create two
         prod = ProductFactory(ps_id = 5)
-
         po1 = self.c.get_create_or_update('ProductOption',
             {'ps_name' : str(str(prod.ps_id) + "_" + "talla"), 'product_id': prod}, {})
         po2 = self.c.get_create_or_update('ProductOption',
             {'ps_name' : str(str(prod.ps_id) + "_" + "color"), 'product_id': prod}, {})
-
         prod_list = models.ProductOption.objects.all()
         assert len(prod_list) is 2
 
@@ -451,60 +449,43 @@ class TestControllerICGProducts:
             {'ps_name' : str(str(prod.ps_id) + "_" + "talla"), 'product_id': prod}, {})
         po4 = self.c.get_create_or_update('ProductOption',
             {'ps_name' : str(str(prod.ps_id) + "_" + "color"), 'product_id': prod}, {})
-
         prod_list = models.ProductOption.objects.all()
         assert len(prod_list) is 2
         assert po1.pk is po3.pk
         assert po2.pk is po4.pk
 
-    def test_get_create_or_update_combination_createOne(self):
+    def test_get_create_or_update_CombinationOk(self):
+        # Create One
         prod = ProductFactory()
-
-        comb = self.c.get_create_or_update_combination(
-            prod, "12", "12 ML", False, "8712079332730")
-
+        comb1 = self.c.get_create_or_update('Combination', {'product_id': prod, 'icg_talla': '12',
+            'icg_color': '12 ML'}, {'discontinued': False, 'ean13': '8712079332730'})
         comb_list = models.Combination.objects.all()
         assert len(comb_list) is 1
 
-    def test_get_create_or_update_combination_createOneGetOne(self):
-        prod = ProductFactory()
-
-        comb1 = self.c.get_create_or_update_combination(
-            prod, "12", "12 ML", False, "8712079332730")
-        comb2 = self.c.get_create_or_update_combination(
-            prod, "12", "12 ML", False, "8712079332730")
-
+        # Get one
+        comb2 = self.c.get_create_or_update('Combination', {'product_id': prod, 'icg_talla': '12',
+            'icg_color': '12 ML'}, {'discontinued': False, 'ean13': '8712079332730'})
         comb_list = models.Combination.objects.all()
         assert len(comb_list) is 1
         assert comb1.pk is comb2.pk
 
-    def test_get_create_or_update_combination_createOneUpdateOne(self):
-        prod = ProductFactory()
-
-        comb1 = self.c.get_create_or_update_combination(
-            prod, "12", "12 ML", False, "8712079332730")
-        comb2 = self.c.get_create_or_update_combination(
-            prod, "12", "12 ML", True, "8712079332731")
-
+        # Update one
+        comb3 = self.c.get_create_or_update('Combination', {'product_id': prod, 'icg_talla': '12',
+            'icg_color': '12 ML'}, {'discontinued': True, 'ean13': '8712079332734'})
         comb_list = models.Combination.objects.all()
-        comb = models.Combination.objects.get(icg_talla = "12 ML", icg_color="12", product_id = prod )
+        comb = models.Combination.objects.get(icg_color = "12 ML", icg_talla="12", product_id = prod )
         assert len(comb_list) is 1
-        assert comb1.pk is comb2.pk
-        assert comb.ean13 == "8712079332731"
-        assert comb.discontinued == True
+        assert comb1.pk is comb3.pk
+        assert comb.ean13 == "8712079332734"
+        assert comb.discontinued
+        assert comb.fields_updated == "{'ean13': '8712079332734', 'discontinued': True}"
 
-    def test_get_create_or_update_combination_createTwo(self):
-        prod = ProductFactory()
-
-        comb1 = self.c.get_create_or_update_combination(
-            prod, "12", "12 ML", False, "8712079332730")
-        comb2 = self.c.get_create_or_update_combination(
-            prod, "12", "120 ML", True, "8712079332731")
-
+        # Creates other
+        comb4 = self.c.get_create_or_update('Combination', {'product_id': prod, 'icg_talla': '12',
+            'icg_color': '120 ML'}, {'discontinued': True, 'ean13': '8712079332734'})
         comb_list = models.Combination.objects.all()
         assert len(comb_list) is 2
-        assert comb1.pk is not comb2.pk
-
+        assert comb1.pk is not comb4.pk
 
 
 @pytest.mark.django_db

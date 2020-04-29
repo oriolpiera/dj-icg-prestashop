@@ -34,33 +34,6 @@ class ControllerICGProducts(object):
             self.logger.error("Objecte torna més d'un: %s", +
                 str(dj_object.objects.filter(**primary_key)))
 
-    def get_create_or_update_combination(self, product_id, icg_color, icg_talla, discontinued, ean13):
-        #Combination
-        comb = None
-
-        c_new = models.Combination(product_id = product_id, icg_color = icg_color,
-            icg_talla = icg_talla, discontinued = discontinued, ean13 = ean13)
-        try:
-            c_old = models.Combination.objects.get(product_id = product_id,
-                icg_talla = icg_talla, icg_color = icg_color)
-            updated = c_old.compare(c_new)
-            if updated:
-                models.Combination.objects.filter(pk=c_old.pk).update(**updated)
-                self.logger.info("Combinació modificada: %s", str(updated))
-            comb = c_old
-        except ObjectDoesNotExist:
-            self.logger.info("Combinació creada: %s - %s - %s" %
-                (str(c_new.product_id.icg_id), str(icg_talla), str(icg_color)))
-            c_new.save()
-            comb = c_new
-        except MultipleObjectsReturned:
-            self.logger.error("Combinació torna més d'un: %s",
-                str(models.Combination.objects.filter(product_id = prod_pk,
-                icg_talla = icg_talla, icg_color = icg_color)))
-
-        return comb
-
-
     def saveNewProducts(self, url_base=None):
         if not url_base:
             url_base = self._url_base
@@ -91,7 +64,9 @@ class ControllerICGProducts(object):
                 {'icg_reference': icg_reference, 'icg_name': icg_name,
                 'visible_web': visible_web, 'manufacturer': man}) 
 
-            comb = self.get_create_or_update_combination(prod, icg_color, icg_talla, discontinued, ean13)
+            comb = self.get_create_or_update('Combination', {'product_id': prod,
+                'icg_color': icg_color, 'icg_talla': icg_talla},
+                {'discontinued': discontinued, 'ean13': ean13})
 
 
 class ControllerICGPrices(object):

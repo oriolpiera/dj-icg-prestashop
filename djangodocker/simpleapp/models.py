@@ -173,6 +173,7 @@ class Combination(models.Model):
     modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
     discontinued = models.BooleanField(default=True)
+    fields_updated = models.CharField(max_length=200, default="{}")
 
     class Meta:
         verbose_name = 'combination'
@@ -202,6 +203,9 @@ class Combination(models.Model):
         if self.discontinued != product.discontinued:
             result['discontinued'] = product.discontinued
         return result
+
+    def compareICG(self, comb):
+        return self.compare(comb)
 
 class Stock(models.Model):
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE)
