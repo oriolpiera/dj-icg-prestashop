@@ -52,13 +52,9 @@ class ControllerICGProducts(object):
             manufacturer_id = row[13]
             discontinued = True if row[15] == 'T' else False
             
-            #Django pk
-            man_pk = None
-            prod_pk = None
 
             man = self.get_create_or_update('Manufacturer', 
                 {'icg_id': manufacturer_id}, {'icg_name': row[14] })
-            man_pk = man.pk
 
             prod = self.get_create_or_update('Product', {'icg_id': icg_id},
                 {'icg_reference': icg_reference, 'icg_name': icg_name,

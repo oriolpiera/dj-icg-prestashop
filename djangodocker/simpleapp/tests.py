@@ -441,18 +441,48 @@ class TestControllerICGProducts:
             {'ps_name' : str(str(prod.ps_id) + "_" + "talla"), 'product_id': prod}, {})
         po2 = self.c.get_create_or_update('ProductOption',
             {'ps_name' : str(str(prod.ps_id) + "_" + "color"), 'product_id': prod}, {})
-        prod_list = models.ProductOption.objects.all()
-        assert len(prod_list) is 2
+        po_list = models.ProductOption.objects.all()
+        assert len(po_list) is 2
 
         # Create two Get two
         po3 = self.c.get_create_or_update('ProductOption',
             {'ps_name' : str(str(prod.ps_id) + "_" + "talla"), 'product_id': prod}, {})
         po4 = self.c.get_create_or_update('ProductOption',
             {'ps_name' : str(str(prod.ps_id) + "_" + "color"), 'product_id': prod}, {})
-        prod_list = models.ProductOption.objects.all()
-        assert len(prod_list) is 2
+        po_list = models.ProductOption.objects.all()
+        assert len(po_list) is 2
         assert po1.pk is po3.pk
         assert po2.pk is po4.pk
+
+        # Creates others
+        prod = ProductFactory(ps_id = 6)
+        po5 = self.c.get_create_or_update('ProductOption',
+            {'ps_name' : str(str(prod.ps_id) + "_" + "talla"), 'product_id': prod}, {})
+        po6 = self.c.get_create_or_update('ProductOption',
+            {'ps_name' : str(str(prod.ps_id) + "_" + "color"), 'product_id': prod}, {})
+        po_list = models.ProductOption.objects.all()
+        assert len(po_list) is 4
+
+    def test_get_create_or_update_ProductOptionValueOk(self):
+        # Create One
+        po = ProductOptionFactory()
+        pov1 = self.c.get_create_or_update('ProductOptionValue',
+            {'po_id' : po, 'icg_name': '12 ML'}, {})
+        pov_list = models.ProductOptionValue.objects.all()
+        assert len(pov_list) is 1
+
+        # Create two Get two
+        pov2 = self.c.get_create_or_update('ProductOptionValue',
+            {'po_id' : po, 'icg_name': '12 ML'}, {})
+        pov_list = models.ProductOptionValue.objects.all()
+        assert len(pov_list) is 1
+        assert pov1.pk is pov2.pk
+
+        # Creates other
+        pov3 = self.c.get_create_or_update('ProductOptionValue',
+            {'po_id' : po, 'icg_name': '120 ML'}, {})
+        pov_list = models.ProductOptionValue.objects.all()
+        assert len(pov_list) is 2
 
     def test_get_create_or_update_CombinationOk(self):
         # Create One

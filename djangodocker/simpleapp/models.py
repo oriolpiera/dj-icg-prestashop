@@ -355,6 +355,9 @@ class ProductOptionValue(models.Model):
     def saved_in_prestashop(self):
         return ps_id
 
+    def compareICG(self, po):
+        return {}
+
 class SpecificPrice(models.Model):
     ps_id = models.IntegerField(default=0)
     ps_reduction = models.FloatField(default=0)
