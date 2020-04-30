@@ -2,6 +2,9 @@ language: python
 sudo: required
 dist: trusty
 
+env:
+  - ci_env=`bash <(curl -s https://codecov.io/env)`
+
 services:
 - docker
 
@@ -13,7 +16,7 @@ before_script:
 - docker-compose up -d
 
 script:
-- docker-compose run -e DJANGO_SETTINGS_MODULE=djangodocker.settings.testing -e TRAVIS_JOB_ID='$TRAVIS_JOB_ID' -e TRAVIS_BRANCH='$TRAVIS_BRANCH' --no-deps --rm app bash -c "./scripts/wait-for-prestashop.sh && python manage.py makemigrations; python manage.py migrate; coverage run -m pytest;"
+- docker-compose run $ci_env -e DJANGO_SETTINGS_MODULE=djangodocker.settings.testing --no-deps --rm app bash -c "./scripts/wait-for-prestashop.sh && python manage.py makemigrations; python manage.py migrate; coverage run -m pytest; bash <(curl -s https://codecov.io/bash);"
 
 deploy:
   - provider: script
@@ -21,3 +24,4 @@ deploy:
     on:
       branch: master
     skip_cleanup: true
+

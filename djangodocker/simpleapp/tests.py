@@ -4,6 +4,7 @@ import pytest
 from . import models, mssql, controller, prestashop
 import random
 from django.core.exceptions import ObjectDoesNotExist,MultipleObjectsReturned
+import prestapyt
 
 class ManufacturerFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -11,8 +12,8 @@ class ManufacturerFactory(factory.django.DjangoModelFactory):
         django_get_or_create = ('icg_name','ps_name')
 
     icg_id = factory.Sequence(int)
-    icg_name = factory.Sequence(lambda n: 'Company ICG name %d' % n)
-    ps_name = factory.Sequence(lambda n: 'Company PS name %d' % n)
+    icg_name = factory.Sequence(lambda n: 'Company name %d' % n)
+    ps_name = factory.Sequence(lambda n: 'Company name %d' % n)
 
 class ProductFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -21,9 +22,9 @@ class ProductFactory(factory.django.DjangoModelFactory):
 
     icg_id = factory.Sequence(int)
     icg_reference = factory.Sequence(lambda n: 100000 + n)
-    ps_name = factory.Sequence(lambda n: 'Product PS name %d' % n)
+    ps_name = factory.Sequence(lambda n: 'Product name %d' % n)
     manufacturer = factory.SubFactory(ManufacturerFactory)
-    icg_name = factory.Sequence(lambda n: 'Product ICG name %d' % n)
+    icg_name = factory.Sequence(lambda n: 'Product name %d' % n)
 
 class CombinationFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -33,7 +34,7 @@ class CombinationFactory(factory.django.DjangoModelFactory):
     icg_talla = factory.Sequence(lambda n: "t_%d" % n)
     icg_color = factory.Sequence(lambda n: "c_%d" % n)
     product_id = factory.SubFactory(ProductFactory)
-    ean13 = factory.Sequence(lambda n: 1000000000000 + n)
+    ean13 = factory.Sequence(lambda n: str(1000000000000 + n))
     minimal_quantity = 1
 
 class StockFactory(factory.django.DjangoModelFactory):
@@ -132,7 +133,7 @@ class TestControllerPrestashop:
 
     @classmethod
     def setup_class(self):
-        import prestapyt
+
         self._api =  prestapyt.PrestaShopWebServiceDict(
             'http://prestashop/api', 'GENERATE_COMPLEX_KEY_LIKE_THIS!!', debug=True, verbose=True)
         self.p = prestashop.ControllerPrestashop()
@@ -162,9 +163,8 @@ class TestControllerPrestashop:
         man.icg_name = 'other_name'
         man_ps2 = self.p.get_or_create_manufacturer(man)
 
-        assert man.ps_id
-        assert man_ps1['manufacturer'] == man_ps2['manufacturer']
-        #assert man_ps2.icg_name == 'other_name'
+        assert man_ps1['manufacturer'] != man_ps2['manufacturer']
+        assert man_ps2['manufacturer']['name'] == 'other_name'
 
 
     def test_createTwoManufacturers_ok(self):
@@ -219,6 +219,7 @@ class TestControllerPrestashop:
     def test_get_or_create_combination_ok(self):
         # Create one
         comb = CombinationFactory(icg_talla="12", icg_color="***", product_id__icg_id=7498)
+        assert not comb.discontinued
         comb_ps1 = self.p.get_or_create_combination(comb)
         assert comb.ps_id
         assert comb_ps1['combination']['id']
@@ -232,13 +233,23 @@ class TestControllerPrestashop:
         assert comb_ps1['combination']['id'] == comb_ps2['combination']['id']
 
         # Create other
-        comb2 = CombinationFactory(icg_talla="24", icg_color="***", product_id__icg_id=7498)
+        comb2 = CombinationFactory(icg_talla="24", icg_color="***", product_id__icg_id=7499)
         comb_ps3 = self.p.get_or_create_combination(comb2)
         assert comb_ps1['combination']['id'] != comb_ps3['combination']['id']
         po_list = models.ProductOption.objects.all()
         pov_list = models.ProductOptionValue.objects.all()
-        assert len(po_list) is 2
-        assert len(pov_list) is 3
+        assert len(po_list) is 4
+        assert len(pov_list) is 4
+
+        #Delete one
+        comb.discontinued = True
+        comb_ps4 = self.p.get_or_create_combination(comb)
+        assert comb_ps4 is True
+
+        #Exeption when try to eliminate not existing combination
+        with pytest.raises(prestapyt.prestapyt.PrestaShopWebServiceError):
+            self.p.get_or_create_combination(comb)
+
 
     def test_get_or_create_product_options_ok(self):
         # Create one
@@ -292,6 +303,7 @@ class TestControllerPrestashop:
         comb_ps3 = self.p.get_or_create_combination(comb2)
         sp_ps3 = self.p.get_or_create_specific_price(sp2)
         assert sp_ps1['specific_price']['id'] != sp_ps3['specific_price']['id']
+
 
     def test_carregaNous_ok(self):
         #import pudb;pu.db

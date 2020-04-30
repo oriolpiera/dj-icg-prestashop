@@ -23,9 +23,18 @@ class ControllerPrestashop(object):
 
     def get_or_create_manufacturer(self, manufacturer):
         if manufacturer.ps_id:
-            return self._api.get('manufacturers', resource_id=manufacturer.ps_id)
-        response = self._api.add('manufacturers', manufacturer.prestashop_object())
-        manufacturer.ps_id = int(response['prestashop']['manufacturer']['id'])
+            man_ps = self._api.get('manufacturers', resource_id=manufacturer.ps_id)
+            updated, new_man_ps = manufacturer.compare(man_ps)
+            if not updated:
+                return man_ps
+            else:
+                new_man_ps['manufacturer'].pop('link_rewrite', None)
+                response = self._api.edit('manufacturers', new_man_ps)
+                self.logger.info("Manufacturer modificat: %s", str(new_man_ps))
+        else:
+            response = self._api.add('manufacturers', manufacturer.prestashop_object())
+            manufacturer.ps_id = int(response['prestashop']['manufacturer']['id'])
+            self.logger.info("Manufacturer creat: %s", str(manufacturer.icg_name))
         manufacturer.ps_name = manufacturer.icg_name
         manufacturer.updated = False
         manufacturer.save()
@@ -59,9 +68,20 @@ class ControllerPrestashop(object):
 
     def get_or_create_combination(self, comb):
         if comb.ps_id:
-            return self._api.get('combinations', resource_id=comb.ps_id)
-        response = self._api.add('combinations', comb.prestashop_object())
-        comb.ps_id = int(response['prestashop']['combination']['id'])
+            comb_ps = self._api.get('combinations', resource_id=comb.ps_id)
+            updated, new_comb_ps = comb.compare(comb_ps)
+            if not updated:
+                return comb_ps
+            else:
+                if 'discontinued' in new_comb_ps:
+                    self.logger.info("Combinacio eliminada: %s", str(comb))
+                    return self._api.delete('combinations', resource_ids=comb.ps_id)
+                new_comb_ps['combination']['id'] = comb.ps_id
+                response = self._api.edit('manufacturers', comb.ps_id, new_comb_ps)
+                self.logger.info("Combinacio modificada: %s", str(new_comb_ps))
+        else:
+            response = self._api.add('combinations', comb.prestashop_object())
+            comb.ps_id = int(response['prestashop']['combination']['id'])
         comb.updated = False
         comb.save()
 
@@ -144,15 +164,6 @@ class ControllerPrestashop(object):
         price.save()
         return self._api.get('specific_prices', resource_id=price.ps_id)
 
-    def update_manufacturer(self, man_dj, man_ps, updated):
-        man_ps.update(man_dj.prestashop_object())
-        man_ps['manufacturer']['id'] = man_dj.ps_id
-        response = self._api.edit('manufacturers', man_ps)
-        man_dj.ps_id = int(response['prestashop']['manufacturer']['id'])
-        man_dj.ps_name = man_dj.icg_name
-        man_dj.updated = False
-        man_dj.save()
-
     def updated_product(self, prod_dj, prod_ps, updated):
         prod_ps.update(prod_dj.prestashop_object())
         prod_ps['product']['id'] = prod_dj.ps_id
@@ -162,14 +173,6 @@ class ControllerPrestashop(object):
         prod_dj.updated = False
         prod_dj.save()
 
-    def updated_combination(self, comb_dj, comb_ps, updated):
-        if 'discontinued' in updated:
-            return self._api.delete('combinations', resource_ids=comb_dj.ps_id)
-        comb_ps.update(updated)
-        response = self._api.edit('combinations', prod_ps)
-        comb_dj.updated = False
-        comb_dj.save()
-        return response
 
     def carregaNous(self):
         ps_man = []
@@ -177,9 +180,6 @@ class ControllerPrestashop(object):
         for man in updated_manufacturers:
             m = self.get_or_create_manufacturer(man)
             ps_man.append(m['manufacturer']['id'])
-            updated = man.compare(m)
-            if updated:
-                self.update_manufacturer(man, m, updated)
 
         ps_prod = []
         updated_products = models.Product.objects.filter(updated = True)
@@ -207,11 +207,6 @@ class ControllerPrestashop(object):
         for comb in updated_comb:
             c = self.get_or_create_combination(comb)
             ps_comb.append(c['combination']['id'])
-            updated = comb.compare(c)
-            if updated:
-                #import pudb;pu.db
-                self.updated_combination(comb, c, updated)
-                #if deleted, ps_comb.remove
 
 
         return {'ps_man': ps_man, 'ps_prod': ps_prod, 'ps_po': ps_po,

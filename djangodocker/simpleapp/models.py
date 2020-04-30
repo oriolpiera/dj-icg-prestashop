@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.db import models
 from django.utils import timezone
+from . import mytools
 
 class Manufacturer(models.Model):
     """
@@ -29,11 +30,13 @@ class Manufacturer(models.Model):
             result['icg_name'] = man.icg_name
         return result
 
+
     def compare(self, man):
-        result = {}
-        if self.ps_name != man['manufacturer']['name']:
-            result['ps_name'] = man['manufacturer']['name']
-        return result
+        if self.icg_name != man['manufacturer']['name']:
+            man['manufacturer']['name'] = self.icg_name
+            return True, man
+        return False, {}
+
 
     @classmethod
     def createFromPS(cls, man_dict):
@@ -118,6 +121,18 @@ class Product(models.Model):
 
         return result
 
+    def compareOldWith(self, man):
+        #Example amb control amb idiomes
+        print(man)
+        changed = False
+        man['manufacturer'].pop('link_rewrite', None)
+        if self.icg_name != mytools.get_ps_language(man['manufacturer']['name']):
+            man['manufacturer']['name'] = mytools.get_ps_language(
+                man['manufacturer']['name'], self.icg_name)
+            changed = True
+        print(man)
+        return changed, man
+
     def prestashop_object(self):
         return {
             "product": {
@@ -172,7 +187,7 @@ class Combination(models.Model):
     created_date = models.DateTimeField(default=timezone.now)
     modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
-    discontinued = models.BooleanField(default=True)
+    discontinued = models.BooleanField(default=False) #descatalogado
     fields_updated = models.CharField(max_length=200, default="{}")
 
     class Meta:
@@ -197,12 +212,14 @@ class Combination(models.Model):
         }
 
     def compare(self, comb):
-        result = {}
-        if self.ean13 != comb['combination']['ean13']:
-            result['ean13'] = comb['combination']['ean13']
+        modified = False
+        if self.ean13 != str(comb['combination']['ean13']):
+            comb['combination']['ean13'] = self.ean13
+            modified = True
         if self.discontinued:
-            result['discontinued'] = True
-        return result
+            comb['discontinued'] = True
+            modified = True
+        return modified, comb
 
     def compareICG(self, comb):
         result = {}
