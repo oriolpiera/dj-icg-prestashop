@@ -140,80 +140,56 @@ class TestControllerPrestashop:
 
 
     def test_createOneManufacturer_ok(self):
+        # Create one
         man = ManufacturerFactory()
-
         man_ps = self.p.get_or_create_manufacturer(man)
-
         assert man.ps_id
         assert man_ps['manufacturer']['id']
 
-    def test_createOneManufacturerGetOne_ok(self):
-        man = ManufacturerFactory()
-
+        # Get one
         man_ps1 = self.p.get_or_create_manufacturer(man)
-        man_ps2 = self.p.get_or_create_manufacturer(man)
+        assert man_ps1['manufacturer'] == man_ps['manufacturer']
 
-        assert man.ps_id
-        assert man_ps1['manufacturer'] == man_ps2['manufacturer']
-
-    def test_createOneManufacturerGetOneUpdateOne_ok(self):
-        man = ManufacturerFactory()
-
-        man_ps1 = self.p.get_or_create_manufacturer(man)
+        # Update one
         man.icg_name = 'other_name'
         man_ps2 = self.p.get_or_create_manufacturer(man)
-
         assert man_ps1['manufacturer'] != man_ps2['manufacturer']
         assert man_ps2['manufacturer']['name'] == 'other_name'
 
-
-    def test_createTwoManufacturers_ok(self):
+        # Create other
         man1 = ManufacturerFactory()
-        man2 = ManufacturerFactory()
-
         man_ps1 = self.p.get_or_create_manufacturer(man1)
-        man_ps2 = self.p.get_or_create_manufacturer(man2)
-
         assert man1.ps_id
-        assert man2.ps_id
-        assert man_ps1['manufacturer'] is not man_ps2['manufacturer']
+        assert man_ps1['manufacturer'] is not man_ps['manufacturer']
 
 
     def test_createOneProduct_ok(self):
+        # Create one
         prod = ProductFactory()
-
         prod_ps = self.p.get_or_create_product(prod)
-
         assert prod.ps_id
         assert prod_ps['product']['id']
+        po_list = models.ProductOption.objects.all()
+        assert len(po_list) is 2
 
-    def test_createOneProduct_noCreate(self):
-        prod = ProductFactory(visible_web=False)
-
-        prod_ps = self.p.get_or_create_product(prod)
-
-        assert not prod.ps_id
-        assert prod_ps == {}
-
-    def test_createOneProductGetOne_ok(self):
-        prod = ProductFactory()
-
-        prod_ps1 = self.p.get_or_create_product(prod)
-        prod_ps2 = self.p.get_or_create_product(prod)
-
-        assert prod.ps_id
-        assert prod_ps1['product'] == prod_ps2['product']
-
-    def test_createTwoProducts_ok(self):
-        prod1 = ProductFactory()
-        prod2 = ProductFactory()
-
+        # No create
+        prod1 = ProductFactory(visible_web=False)
         prod_ps1 = self.p.get_or_create_product(prod1)
-        prod_ps2 = self.p.get_or_create_product(prod2)
+        assert not prod1.ps_id
+        assert prod_ps1 == {}
 
-        assert prod1.ps_id
+        # Get one
+        prod_ps3 = self.p.get_or_create_product(prod)
+        assert prod_ps['product'] == prod_ps3['product']
+
+        # Create other
+        prod2 = ProductFactory()
+        prod_ps4 = self.p.get_or_create_product(prod2)
+        assert prod.ps_id
         assert prod2.ps_id
-        assert prod_ps1['product'] != prod_ps2['product']
+        assert prod_ps['product'] != prod_ps4['product']
+        po_list = models.ProductOption.objects.all()
+        assert len(po_list) is 4
 
 
     def test_get_or_create_combination_ok(self):
@@ -305,28 +281,46 @@ class TestControllerPrestashop:
         assert sp_ps1['specific_price']['id'] != sp_ps3['specific_price']['id']
 
 
+    def test_get_or_create_product_options_django_ok(self):
+        # Create two
+        prod = ProductFactory()
+        prod_dj1 = self.p.get_or_create_product_options_django(prod, 'talla')
+        prod_dj2 = self.p.get_or_create_product_options_django(prod, 'color')
+        assert len(models.ProductOption.objects.all()) is 2
+        assert len(models.ProductOption.objects.filter(updated = True)) is 2
+
+        # Get two
+        prod_dj1 = self.p.get_or_create_product_options_django(prod, 'talla')
+        prod_dj2 = self.p.get_or_create_product_options_django(prod, 'color')
+        assert len(models.ProductOption.objects.all()) is 2
+        assert len(models.ProductOption.objects.filter(updated = True)) is 2
+
     def test_carregaNous_ok(self):
-        #import pudb;pu.db
         comb = CombinationFactory.create_batch(2)
         assert len(models.Product.objects.all()) is 2
+        assert len(models.Product.objects.filter(updated = True)) is 2
         assert len(models.ProductOption.objects.all()) is 0
+        assert len(models.ProductOption.objects.filter(updated = True)) is 0
+        assert len(models.Combination.objects.filter(updated = True)) is 2
+        assert len(models.ProductOptionValue.objects.filter(updated = True)) is 0
 
         created = self.p.carregaNous()
-        created2 = self.p.carregaNous()
 
         assert len(models.Manufacturer.objects.filter(updated = True)) is 0
         assert len(models.Manufacturer.objects.exclude(ps_id = 0)) is 2
         assert len(models.Product.objects.filter(updated = True)) is 0
         assert len(models.Product.objects.exclude(ps_id = 0)) is 2
         assert len(models.ProductOption.objects.filter(updated = True)) is 0
-        assert len(models.ProductOption.objects.exclude(ps_id = 0)) is 8
+        assert len(models.ProductOption.objects.exclude(ps_id = 0)) is 4
         assert len(models.ProductOptionValue.objects.exclude(ps_id = 0)) is 4
         assert len(models.Combination.objects.exclude(ps_id = 0)) is 2
+        assert len(models.ProductOptionValue.objects.filter(updated = True)) is 0
+        assert len(models.Combination.objects.filter(updated = True)) is 0
 
         assert len(created['ps_man']) is 2
         assert len(created['ps_prod']) is 2
         assert len(created['ps_po']) is 4
-        #assert len(created['ps_pov']) is 4
+        assert len(created['ps_pov']) is 4
         assert len(created['ps_comb']) is 2
 
         for n in  created['ps_man']:
@@ -341,16 +335,15 @@ class TestControllerPrestashop:
         for n in  created['ps_pov']:
             assert self._api.get('product_option_values', n)
  
-        #REmove whem delete element
-        #for n in created['ps_comb']:
-        #    assert self._api.get('combinations', n)
+        for n in created['ps_comb']:
+            assert self._api.get('combinations', n)
 
         created2 = self.p.carregaNous()
 
         assert len(created2['ps_man']) is 0
         assert len(created2['ps_prod']) is 0
         assert len(created2['ps_po']) is 0
-        assert len(created2['ps_pov']) is 4
+        assert len(created2['ps_pov']) is 0
         assert len(created2['ps_comb']) is 0
 
 @pytest.mark.django_db

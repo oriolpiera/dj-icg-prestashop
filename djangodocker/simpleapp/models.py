@@ -44,14 +44,6 @@ class Manufacturer(models.Model):
              ps_name = man_dict['manufacturer']['name'])
         return man
 
-    def prestashop_object(self):
-        return {
-            "manufacturer": {
-                "active": "1",
-                "name": self.ps_name or self.icg_name,
-            }
-        }
-
 
 class Product(models.Model):
     icg_id = models.IntegerField(unique=True)
@@ -110,14 +102,21 @@ class Product(models.Model):
             if self.visible_web != product.visible_web:
                 result['visible_web'] = "0"
         elif isinstance(product, dict):
-            if self.icg_reference != product['product']['reference']:
-                result['icg_reference'] = product['product']['reference']
-            if self.manufacturer.ps_id != product['product']['id_manufacturer']:
-                result['manufacturer'] = product['product']['id_manufacturer']
+            modified = False
+            if str(self.icg_reference) != str(product['product']['reference']):
+                product['product']['reference'] = self.icg_reference
+                modified = True
+            if str(self.manufacturer.ps_id) != str(product['product']['id_manufacturer']):
+                product['product']['id_manufacturer'] = self.manufacturer.ps_id
+                modified = True
             if self.icg_name != product['product']['name']['language']['value']:
-                result['icg_name'] = product['product']['name']['language']['value']
-            if self.visible_web != product['product']['active']:
-                result['visible_web'] = product['product']['active']
+                #TODO: more than one language
+                product['product']['name']['language']['value'] = self.icg_name
+                modified = True
+            if self.visible_web != True if product['product']['active'] == 1 else False:
+                product['product']['active'] = 1 if self.visible_web else 0
+                modified = True
+            return modified, product
 
         return result
 
@@ -133,49 +132,6 @@ class Product(models.Model):
         print(man)
         return changed, man
 
-    def prestashop_object(self):
-        return {
-            "product": {
-                "id_manufacturer": self.manufacturer.ps_id,
-                "id_category_default": "4",
-                "reference": self.icg_reference,
-                "state": "1",
-                "price": "0",
-                "active": "1",
-                "redirect_type": "301-category",
-                "available_for_order": "1",
-                "show_condition": "0",
-                "condition": "new",
-                "show_price": "1",
-                "indexed": "1",
-                "visibility": "both",
-                "id_supplier": "0",
-                "additional_delivery_times": "0",
-                "ecotax": "0.000000",
-                "online_only": "0",
-                "height": "0.000000",
-                'name': {
-                    'language': [{
-                        'attrs': {
-                            'id': '1',
-                            'href': {'value': 'http://localhost:8080/api/languages/1',
-                            'xmlns': 'http://www.w3.org/1999/xlink'},
-                        },
-                        'value': self.icg_name
-                        }],
-                },
-                "link_rewrite": {
-                    'language': [{
-                        'attrs': {
-                            'id': '1',
-                            'href': {'value': 'http://localhost:8080/api/languages/1',
-                            'xmlns': 'http://www.w3.org/1999/xlink'},
-                        },
-                        'value': "name-rewrite"
-                        }],
-                }
-            }
-        }
 
 class Combination(models.Model):
     ps_id = models.IntegerField(blank=True, null=True) #previous ps_product_attribut
@@ -201,15 +157,6 @@ class Combination(models.Model):
     def saved_in_prestashop(self):
         return ps_id
 
-    def prestashop_object(self):
-        return {
-            "combinations": {
-                "id_product": self.product_id.ps_id,
-                "ean13": self.ean13,
-                "price": "0",
-                "minimal_quantity": self.minimal_quantity,
-            }
-        }
 
     def compare(self, comb):
         modified = False
@@ -242,15 +189,6 @@ class Stock(models.Model):
         verbose_name = 'stock'
         verbose_name_plural = 'stocks'
 
-    def prestashop_object(self):
-        return {
-            "combinations": {
-                "id_product": self.product_id.ps_id,
-                "ean13": self.ean13,
-                "price": "0",
-                "minimal_quantity": self.combination_id.minimal_quantity,
-            }
-        }
 
 class Price(models.Model):
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE, primary_key=True)
