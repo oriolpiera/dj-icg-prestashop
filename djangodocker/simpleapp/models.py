@@ -200,17 +200,15 @@ class Price(models.Model):
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE, primary_key=True)
     ps_id = models.IntegerField(default=0)
     pvp = models.FloatField(default=0)
-    dto_percent = models.FloatField(default=0)
     preu_oferta = models.FloatField(default=0)
-    dto_euros = models.FloatField(default=0)
     iva = models.IntegerField(default=0)
     pvp_siva = models.FloatField(default=0)
     preu_oferta_siva = models.FloatField(default=0)
-    dto_euros_siva = models.FloatField(default=0)
     created_date = models.DateTimeField(default=timezone.now)
     modified_date = models.DateTimeField(blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=False)
+    fields_updated = models.CharField(max_length=200, default="{}")
 
     class Meta:
         verbose_name = 'price'
@@ -218,12 +216,18 @@ class Price(models.Model):
 
     def compare(self, product):
         result = {}
-        if self.dto_percent != product.dto_percent:
-            result['dto_percent'] = product.dto_percent
         if self.iva != product.iva:
             result['iva'] = product.iva
         if self.pvp_siva != product.pvp_siva:
             result['pvp_siva'] = product.pvp_siva
+        return result
+
+    def compareICG(self, price):
+        result = {}
+        if self.iva != price.iva:
+            result['iva'] = price.iva
+        if self.pvp_siva != price.pvp_siva:
+            result['pvp_siva'] = price.pvp_siva
         return result
 
 

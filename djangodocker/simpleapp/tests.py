@@ -51,10 +51,9 @@ class StockFactory(factory.django.DjangoModelFactory):
 class PriceFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = 'simpleapp.Price'
-        django_get_or_create = ('pvp','dto_percent', 'combination_id')
+        django_get_or_create = ('pvp', 'combination_id')
 
     pvp = 0
-    dto_percent = 0
     combination_id = factory.SubFactory(CombinationFactory)
 
 class UserFactory(factory.django.DjangoModelFactory):
@@ -141,7 +140,7 @@ class TestControllerPrestashop:
         self.p = prestashop.ControllerPrestashop()
 
 
-    def test_createOneManufacturer_ok(self):
+    def test__get_or_create_manufacturer__ok(self):
         # Create one
         man = ManufacturerFactory()
         man_ps = self.p.get_or_create_manufacturer(man)
@@ -165,7 +164,7 @@ class TestControllerPrestashop:
         assert man_ps1['manufacturer'] is not man_ps['manufacturer']
 
 
-    def test_createOneProduct_ok(self):
+    def test__get_or_create_product__ok(self):
         # Create one
         prod = ProductFactory()
         prod_ps = self.p.get_or_create_product(prod)
@@ -206,7 +205,7 @@ class TestControllerPrestashop:
         assert prod_ps5['product']['id'] == prod_ps['product']['id']
 
 
-    def test_get_or_create_combination_ok(self):
+    def test__get_or_create_combination__ok(self):
         # Create one
         comb = CombinationFactory(icg_talla="12", icg_color="***", product_id__icg_id=7498)
         assert not comb.discontinued
@@ -249,7 +248,7 @@ class TestControllerPrestashop:
         assert comb_ps5['combination']['id'] == comb_ps3['combination']['id']
 
 
-    def test_get_or_create_product_options_ok(self):
+    def test__get_or_create_product_options__ok(self):
         # Create one
         po = ProductOptionFactory()
         po_ps1 = self.p.get_or_create_product_options(po)
@@ -266,7 +265,7 @@ class TestControllerPrestashop:
         assert po_ps3['product_option']['id'] != po_ps2['product_option']['id']
 
 
-    def test_get_or_create_product_option_value_ok(self):
+    def test__get_or_create_product_option_value__ok(self):
         # Create one
         pov = ProductOptionValueFactory()
         pov_ps1 = self.p.get_or_create_product_option_value(pov)
@@ -282,7 +281,7 @@ class TestControllerPrestashop:
         pov_ps3 = self.p.get_or_create_product_option_value(pov2)
         assert pov_ps3['product_option_value']['id'] != pov_ps2['product_option_value']['id']
 
-    def test_get_or_create_specific_price_ok(self):
+    def test__get_or_create_specific_price__ok(self):
         # Create one
         comb = CombinationFactory()
         comb_ps1 = self.p.get_or_create_combination(comb)
@@ -307,7 +306,7 @@ class TestControllerPrestashop:
         sp2.dto_percent = 10
         sp_ps4 = self.p.get_or_create_specific_price(sp2)
         assert sp_ps4['specific_price']['id'] == sp_ps3['specific_price']['id']
-        assert sp_ps4['specific_price']['reduction'] == '0.1'
+        assert float(sp_ps4['specific_price']['reduction']) == 0.1
 
         # Delete one
         sp2.dto_percent = 0
@@ -319,7 +318,7 @@ class TestControllerPrestashop:
         with pytest.raises(prestapyt.prestapyt.PrestaShopWebServiceError):
             self.p.get_or_create_specific_price(sp2)
 
-    def test_get_or_create_product_options_django_ok(self):
+    def test__get_or_create_product_options_django__ok(self):
         # Create two
         prod = ProductFactory()
         prod_dj1 = self.p.get_or_create_product_options_django(prod, 'talla')
@@ -333,7 +332,7 @@ class TestControllerPrestashop:
         assert len(models.ProductOption.objects.all()) is 2
         assert len(models.ProductOption.objects.filter(updated = True)) is 2
 
-    def test_carregaNous_ok(self):
+    def test__carregaNous__ok(self):
         #comb = CombinationFactory.create_batch(2)
         sp = SpecificPriceFactory.create_batch(2)
         assert len(models.Product.objects.all()) is 2
@@ -426,9 +425,11 @@ class TestControllerICGProducts:
         man_list = models.Manufacturer.objects.all()
         comb_list = models.Combination.objects.all()
         sp_list = models.SpecificPrice.objects.all()
+        price_list = models.Price.objects.all()
         assert len(prod_list) is 6
-        assert len(comb_list) is 10
+        assert len(comb_list) is 11
         assert len(sp_list) is 10
+        assert len(price_list) is 11
 
 
     def test_saveNewStocks(self):
@@ -683,6 +684,42 @@ class TestControllerICGProducts:
         assert stock5.pk is not stock.pk
 
 
+    def test_get_create_or_update_PriceOk(self):
+        # Create one
+        comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
+        price = self.c.get_create_or_update('Price', {'combination_id': comb},
+            {'iva': 15, 'pvp_siva': 15.24})
+        price_list = models.Price.objects.all()
+        assert len(price_list) is 1
+        assert price.iva == 15
+
+        # Get one
+        price2 = self.c.get_create_or_update('Price', {'combination_id': comb}, {})
+        price_list = models.Price.objects.all()
+        assert len(price_list) is 1
+        assert price.pk is price2.pk
+
+        # Update one
+        price3 = self.c.get_create_or_update('Price', {'combination_id': comb},
+            {'iva': 10, 'pvp_siva': 14.40 })
+        price_list = models.Price.objects.all()
+        price_list = models.Price.objects.all()
+        price4 =  models.Price.objects.get(pk=price.pk)
+        assert len(price_list) is 1
+        assert price.pk is price3.pk
+        assert price4.fields_updated == "{'iva': 10, 'pvp_siva': 14.4}"
+        assert price4.iva == 10
+
+        # Creates other
+        comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=8000)
+        price5 = self.c.get_create_or_update('Price', {'combination_id': comb},
+            {'iva': 15, 'pvp_siva': 15.24})
+        price_list = models.Price.objects.all()
+        assert len(price_list) is 2
+        assert price5.pk is not price.pk
+
+
+
 class TestMSSQL:
     @classmethod
     def setup_class(self):
@@ -729,21 +766,22 @@ class TestMSSQL:
     def test_newPrices(self):
         ms = mssql.MSSQL()
         np  = ms.newPrices('')
-        data = {0: [1,1,1,1,1,1,1,1,1,1], 
-            1: [7498,7499,7500,7500,7500,7501,7501,7502,7503,7503],
-            2: ['***','***','12','24','8','250ML','75ML','***','S.150ML','S.400ML'],
-            3: ['***','***','CAR 12 ML','CAR 12 ML','CAR 12 ML','***','***','***','***','***'],
-            4: [135.45,300.00,9.00,16.00,7.00,19.00,7.00,167.90,9.00,14.00],
-            5: [30, 30, 20, 20, 20, 20, 20, 30, 25, 25],
-            6: [94.815,210.000,7.200,12.800,5.600,15.200,5.600,117.530,6.750,10.500],
-            7: [40.635,90.000,1.800,3.200,1.400,3.800,1.400,50.370,2.250,3.500],
-            8: [21,21,21,21,21,21,21,21,21,21], 
-            9: [111.94,247.93,7.44,13.22,5.79,15.70,5.79,138.76,7.44,11.57],
-            10: [78.36,173.55,5.95,10.58,4.63,12.56,4.63,97.13,5.58,8.68],
-            11: [33.58,74.38,1.49,2.64,1.16,3.14,1.16,41.63,1.86,2.89],
+        data = {0: [1,1,1,1,1,1,1,1,1,1,1],
+            1: [7498,7499,7500,7500,7500,7501,7501,7502,7503,7503,7503],
+            2: ['***','***','12','24','8','250ML','75ML','***','S.150ML','S.400ML','S.600ML'],
+            3: ['***','***','CAR 12 ML','CAR 12 ML','CAR 12 ML','***','***','***','***','***','***'],
+            4: [135.45,300.00,9.00,16.00,7.00,19.00,7.00,167.90,9.00,14.00,14.00],
+            5: [30, 30, 20, 20, 20, 20, 20, 30, 25, 25,0],
+            6: [94.815,210.000,7.200,12.800,5.600,15.200,5.600,117.530,6.750,10.500,10.500],
+            7: [40.635,90.000,1.800,3.200,1.400,3.800,1.400,50.370,2.250,3.500,3.500],
+            8: [21,21,21,21,21,21,21,21,21,21,21],
+            9: [111.94,247.93,7.44,13.22,5.79,15.70,5.79,138.76,7.44,11.57,11.57],
+            10: [78.36,173.55,5.95,10.58,4.63,12.56,4.63,97.13,5.58,8.68,8.68],
+            11: [33.58,74.38,1.49,2.64,1.16,3.14,1.16,41.63,1.86,2.89,2.89],
             12: ['2020-01-20 16:55:35','2018-01-24 11:42:23','2018-11-22 17:49:39',
                 '2018-11-22 17:49:39','2018-11-22 17:49:39','2020-01-27 17:47:37',
-                '2020-01-27 17:47:37','2020-01-20 16:54:51','2018-11-22 17:49:39','2018-11-22 17:49:39']}
+                '2020-01-27 17:47:37','2020-01-20 16:54:51','2018-11-22 17:49:39',
+                '2018-11-22 17:49:39','2018-11-22 17:49:39']}
 
         test_np = pd.DataFrame(data)
         with pd.option_context('display.max_rows', None, 'display.max_columns', None):
