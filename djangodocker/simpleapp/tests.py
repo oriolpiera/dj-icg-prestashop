@@ -405,6 +405,55 @@ class TestControllerICGProducts:
         assert len(man_list) is 4
         assert len(comb_list) is 10
 
+    def test_saveNewPrices(self):
+        comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
+        comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7499)
+        prod3 = ProductFactory(icg_id = 7500)
+        comb1 = CombinationFactory(icg_talla="12", icg_color="CAR 12 ML", product_id__icg_id=7500)
+        comb1 = CombinationFactory(icg_talla="24", icg_color="CAR 12 ML", product_id__icg_id=7500)
+        comb1 = CombinationFactory(icg_talla="8", icg_color="CAR 12 ML", product_id__icg_id=7500)
+        prod4 = ProductFactory(icg_id = 7501)
+        comb1 = CombinationFactory(icg_talla="250ML", icg_color="***", product_id=prod4)
+        comb1 = CombinationFactory(icg_talla="75ML", icg_color="***", product_id=prod4)
+        comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7502)
+        prod6 = ProductFactory(icg_id = 7503)
+        comb1 = CombinationFactory(icg_talla="S.150ML", icg_color="***", product_id=prod6)
+        comb1 = CombinationFactory(icg_talla="S.400ML", icg_color="***", product_id=prod6)
+
+        self.c.saveNewPrices()
+
+        prod_list = models.Product.objects.all()
+        man_list = models.Manufacturer.objects.all()
+        comb_list = models.Combination.objects.all()
+        sp_list = models.SpecificPrice.objects.all()
+        assert len(prod_list) is 6
+        assert len(comb_list) is 10
+        assert len(sp_list) is 10
+
+
+    def test_saveNewStocks(self):
+        CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
+        prod3 = ProductFactory(icg_id = 7500)
+        CombinationFactory(icg_talla="12", icg_color="CAR 12 ML", product_id__icg_id=7500)
+        CombinationFactory(icg_talla="24", icg_color="CAR 12 ML", product_id__icg_id=7500)
+        CombinationFactory(icg_talla="75ML", icg_color="***", product_id__icg_id=7501)
+        CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7502)
+        CombinationFactory(icg_talla="S.400ML", icg_color="***", product_id__icg_id=7503)
+        prod3 = ProductFactory(icg_id = 7504)
+        CombinationFactory(icg_talla="11 PIEZAS", icg_color="MADERA", product_id__icg_id=7504)
+        CombinationFactory(icg_talla="5 PIEZAS", icg_color="MADERA", product_id__icg_id=7504)
+        CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7506)
+        CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7509)
+
+        self.c.saveNewStocks()
+
+        prod_list = models.Product.objects.all()
+        comb_list = models.Combination.objects.all()
+        stock_list = models.Stock.objects.all()
+        assert len(prod_list) is 8
+        assert len(comb_list) is 10
+        assert len(stock_list) is 10
+
     def test_get_create_or_update_ManufacturersOk(self):
         # Create one
         man1 = self.c.get_create_or_update('Manufacturer',
@@ -566,30 +615,6 @@ class TestControllerICGProducts:
         assert comb1.pk is not comb4.pk
 
 
-    def test_saveNewPrices(self):
-        comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
-        comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7499)
-        prod3 = ProductFactory(icg_id = 7500)
-        comb1 = CombinationFactory(icg_talla="12", icg_color="CAR 12 ML", product_id__icg_id=7500)
-        comb1 = CombinationFactory(icg_talla="24", icg_color="CAR 12 ML", product_id__icg_id=7500)
-        comb1 = CombinationFactory(icg_talla="8", icg_color="CAR 12 ML", product_id__icg_id=7500)
-        prod4 = ProductFactory(icg_id = 7501)
-        comb1 = CombinationFactory(icg_talla="250ML", icg_color="***", product_id=prod4)
-        comb1 = CombinationFactory(icg_talla="75ML", icg_color="***", product_id=prod4)
-        comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7502)
-        prod6 = ProductFactory(icg_id = 7503)
-        comb1 = CombinationFactory(icg_talla="S.150ML", icg_color="***", product_id=prod6)
-        comb1 = CombinationFactory(icg_talla="S.400ML", icg_color="***", product_id=prod6)
-
-        self.c.saveNewPrices()
-
-        prod_list = models.Product.objects.all()
-        man_list = models.Manufacturer.objects.all()
-        comb_list = models.Combination.objects.all()
-        sp_list = models.SpecificPrice.objects.all()
-        assert len(prod_list) is 6
-        assert len(comb_list) is 10
-        assert len(sp_list) is 10
 
     def test_get_create_or_update_SpecificPriceOk(self):
         # Create One
@@ -626,79 +651,36 @@ class TestControllerICGProducts:
         assert len(sp_list) is 2
         assert sp5.pk is not sp1.pk
 
-
-@pytest.mark.django_db
-class TestControllerStocks:
-    @classmethod
-    def setup_class(self):
-        self.c = controller.ControllerICGStocks()
-
-    def test_get_create_or_update_stock_createOne(self):
+    def test_get_create_or_update_StockOk(self):
+        # Create one
         comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
-
-        stock = self.c.get_create_or_update_stock(comb, "15")
-
+        stock = self.c.get_create_or_update('Stock', {'combination_id': comb}, {'icg_stock': 15})
         stock_list = models.Stock.objects.all()
         assert len(stock_list) is 1
-        assert eval(stock.icg_stock) == 15
+        assert stock.icg_stock == 15
 
-    def test_get_create_or_update_stock_createOneGetOne(self):
-        comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
-
-        stock1 = self.c.get_create_or_update_stock(comb, "15")
-        stock2 = self.c.get_create_or_update_stock(comb, "15")
-
-        stock = models.Stock.objects.get(combination_id = comb)
+        # Get one
+        stock2 = self.c.get_create_or_update('Stock', {'combination_id': comb}, {})
         stock_list = models.Stock.objects.all()
         assert len(stock_list) is 1
-        assert stock1.pk is stock2.pk
+        assert stock.pk is stock2.pk
 
-    def test_get_create_or_update_stock_createOneUpdateOne(self):
-        comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
-
-        stock1 = self.c.get_create_or_update_stock(comb, "15")
-        stock2 = self.c.get_create_or_update_stock(comb, "13")
-
-        stock = models.Stock.objects.get(combination_id = comb)
+        # Update one
+        stock3 = self.c.get_create_or_update('Stock', {'combination_id': comb}, {'icg_stock': 10})
         stock_list = models.Stock.objects.all()
+        stock_list = models.Stock.objects.all()
+        stock4 =  models.Stock.objects.get(pk=stock.pk)
         assert len(stock_list) is 1
-        assert stock1.pk is stock2.pk
-        assert stock.icg_stock == 13
+        assert stock.pk is stock3.pk
+        assert stock4.fields_updated == "{'icg_stock': 10}"
+        assert stock4.icg_stock == 10
 
-    def test_get_create_or_update_stock_createTwo(self):
-        prod = ProductFactory()
-        comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id = prod)
-        comb2 = CombinationFactory(icg_talla="1", icg_color="***", product_id = prod)
-
-        stock1 = self.c.get_create_or_update_stock(comb1, "15")
-        stock2 = self.c.get_create_or_update_stock(comb2, "112")
-
+        # Creates other
+        comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=8000)
+        stock5 = self.c.get_create_or_update('Stock', {'combination_id': comb}, {'icg_stock': 15})
         stock_list = models.Stock.objects.all()
-        prod_list = models.Product.objects.all()
-        assert len(prod_list) is 1
         assert len(stock_list) is 2
-        assert stock1.pk is not stock2.pk
-
-    def test_saveNewStocks(self):
-        CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
-        prod3 = ProductFactory(icg_id = 7500)
-        CombinationFactory(icg_talla="12", icg_color="CAR 12 ML", product_id__icg_id=7500)
-        CombinationFactory(icg_talla="24", icg_color="CAR 12 ML", product_id__icg_id=7500)
-        CombinationFactory(icg_talla="75ML", icg_color="***", product_id__icg_id=7501)
-        CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7502)
-        CombinationFactory(icg_talla="S.400ML", icg_color="***", product_id__icg_id=7503)
-        prod3 = ProductFactory(icg_id = 7504)
-        CombinationFactory(icg_talla="11 PIEZAS", icg_color="MADERA", product_id__icg_id=7504)
-        CombinationFactory(icg_talla="5 PIEZAS", icg_color="MADERA", product_id__icg_id=7504)
-        CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7506)
-        CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7509)
-
-        self.c.saveNewStocks()
-
-        prod_list = models.Product.objects.all()
-        comb_list = models.Combination.objects.all()
-        assert len(prod_list) is 8
-        assert len(comb_list) is 10
+        assert stock5.pk is not stock.pk
 
 
 class TestMSSQL:

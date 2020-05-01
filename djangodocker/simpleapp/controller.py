@@ -88,42 +88,6 @@ class ControllerICGProducts(object):
                     {'dto_percent': dto_percent})
             #(comb, dto_percent, iva, pvp_siva)
 
-
-
-class ControllerICGStocks(object):
-    def __init__(self, url_base=''):
-        self._url_base = url_base
-        self.logger = logging.getLogger(__name__)
-
-
-    def get_create_or_update_product(self, icg_id):
-        return models.Product.objects.get(icg_id = icg_id)
-
-
-    def get_create_or_update_combination(self, product_id, icg_color, icg_talla):
-        return models.Combination.objects.get(product_id = product_id, icg_color = str(icg_color),
-             icg_talla = str(icg_talla))
-
-
-    def get_create_or_update_stock(self, combination_id, icg_stock):
-        stock = None
-        try:
-            stock = models.Stock.objects.get(combination_id = combination_id)
-            self.logger.info("Stock modificat de %d: %s", combination_id.pk, str(icg_stock))
-            stock.icg_stock = icg_stock
-            stock.save()
-        except ObjectDoesNotExist:
-            stock = models.Stock(combination_id = combination_id, icg_stock = icg_stock)
-            self.logger.error("Stock creat: %s ", str(combination_id))
-            stock.save()
-        except MultipleObjectsReturned as e:
-            self.logger.error("Stock torna més d'un: %s",
-                str(models.Price.objects.filter(combination_id = combination_id)))
-            raise MultipleObjectsReturned(e)
-
-        return stock
-
-
     def saveNewStocks(self, url_base=None):
         if not url_base:
             url_base = self._url_base
@@ -136,8 +100,11 @@ class ControllerICGStocks(object):
             icg_stock = row[7]
             #icg_modified_date = row[8]
 
-            prod = self.get_create_or_update_product(icg_id)
-            comb = self.get_create_or_update_combination(prod, icg_color, icg_talla)
-            comb2 = self.get_create_or_update_stock(comb, icg_stock)
+            prod = self.get_create_or_update('Product', {'icg_id': icg_id},{})
+            comb = self.get_create_or_update('Combination', {'product_id': prod,
+                'icg_color': icg_color, 'icg_talla': icg_talla},{})
+            stock = self.get_create_or_update('Stock', {'combination_id': comb},
+                {'icg_stock': icg_stock})
+
 
 # vim: et ts=4 sw=4

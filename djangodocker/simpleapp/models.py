@@ -184,11 +184,17 @@ class Stock(models.Model):
     modified_date = models.DateTimeField(blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=False)
+    fields_updated = models.CharField(max_length=200, default="{}")
 
     class Meta:
         verbose_name = 'stock'
         verbose_name_plural = 'stocks'
 
+    def compareICG(self, stock):
+        result = {}
+        if self.icg_stock != stock.icg_stock:
+            result['icg_stock'] = stock.icg_stock
+        return result
 
 class Price(models.Model):
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE, primary_key=True)
