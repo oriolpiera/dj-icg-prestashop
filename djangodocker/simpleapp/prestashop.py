@@ -46,8 +46,11 @@ class ControllerPrestashop(object):
             response = self._api.get('products', resource_id=product.ps_id)
             updated, new_prod_ps = product.compare(response)
             if updated:
+                new_prod_ps['product'].pop('manufacturer_name', None)
+                new_prod_ps['product'].pop('quantity', None)
                 response = self._api.edit('products', new_prod_ps)
                 self.logger.info("Producte modificat: %s", str(new_prod_ps))
+                response = self._api.get('products', resource_id=product.ps_id)
         elif not product.visible_web:
             response = {}
         else:
@@ -74,36 +77,40 @@ class ControllerPrestashop(object):
         return response
 
     def get_or_create_combination(self, comb):
+        response = None
         if comb.ps_id:
-            comb_ps = self._api.get('combinations', resource_id=comb.ps_id)
-            updated, new_comb_ps = comb.compare(comb_ps)
-            if not updated:
-                return comb_ps
-            else:
+            response = self._api.get('combinations', resource_id=comb.ps_id)
+            updated, new_comb_ps = comb.compare(response)
+            if updated:
                 if 'discontinued' in new_comb_ps:
+                    response = self._api.delete('combinations', resource_ids=comb.ps_id)
+                    comb.ps_id = 0
                     self.logger.info("Combinacio eliminada: %s", str(comb))
-                    return self._api.delete('combinations', resource_ids=comb.ps_id)
-                new_comb_ps['combination']['id'] = comb.ps_id
-                response = self._api.edit('manufacturers', comb.ps_id, new_comb_ps)
-                self.logger.info("Combinacio modificada: %s", str(new_comb_ps))
+                else:
+                    new_comb_ps['combination']['id'] = str(comb.ps_id)
+                    #response = self._api.edit('combinations', comb.ps_id, new_comb_ps)
+                    response_edit = self._api.edit('combinations', new_comb_ps)
+                    self.logger.info("Combinacio modificada: %s", str(new_comb_ps))
         else:
             p_data = self._api.get('combinations', options={'schema': 'blank'})
             p_data['combination']['id_product'] = comb.product_id.ps_id
             p_data['combination']['ean13'] = comb.ean13
             p_data['combination']['price'] = 0
             p_data['combination']['minimal_quantity'] = comb.minimal_quantity
-            response = self._api.add('combinations', p_data)
-            comb.ps_id = int(response['prestashop']['combination']['id'])
+            response_add = self._api.add('combinations', p_data)
+            comb.ps_id = int(response_add['prestashop']['combination']['id'])
+            # Create product option values
+            po_talla = self.get_or_create_product_options_django(comb.product_id, 'talla')
+            po_color = self.get_or_create_product_options_django(comb.product_id, 'color')
+            talla = self.get_or_create_product_option_value_django(po_talla, comb.icg_talla)
+            color = self.get_or_create_product_option_value_django(po_color, comb.icg_color)
+
         comb.updated = False
         comb.save()
+        if not response:
+            response = self._api.get('combinations', resource_id=comb.ps_id)
 
-        # Create product option values
-        po_talla = self.get_or_create_product_options_django(comb.product_id, 'talla')
-        po_color = self.get_or_create_product_options_django(comb.product_id, 'color')
-        talla = self.get_or_create_product_option_value_django(po_talla, comb.icg_talla)
-        color = self.get_or_create_product_option_value_django(po_color, comb.icg_color)
-
-        return self._api.get('combinations', resource_id=comb.ps_id)
+        return response
 
     def get_or_create_product_options_django(self, product, tipus):
         c = controller.ControllerICGProducts()
@@ -148,31 +155,45 @@ class ControllerPrestashop(object):
         return self._api.get('product_option_values', pov.ps_id)
 
     def get_or_create_specific_price(self, price):
+        response = None
         if price.ps_id:
-            return self._api.get('specific_prices', resource_id=price.ps_id)
+            response = self._api.get('specific_prices', resource_id=price.ps_id)
+            updated, new_price_ps = price.comparePS(response)
+            if updated:
+                if float(new_price_ps['specific_price']['reduction']) == 0:
+                    response = self._api.delete('specific_prices', resource_ids=price.ps_id)
+                    price.ps_id = 0
+                    self.logger.info("Descompte eliminat: %s", str(price))
+                else:
+                    new_price_ps['specific_price']['id'] = str(price.ps_id)
+                    response_edit = self._api.edit('specific_prices', new_price_ps)
+                    self.logger.info("Descompte modificat: %s", str(new_price_ps))
+        else:
+            price_data = self._api.get('specific_prices', options={'schema': 'blank'})
+            price_data['specific_price']['id_product'] = price.combination_id.product_id.ps_id
+            price_data['specific_price']['id_product_attribute'] = price.combination_id.ps_id
+            price_data['specific_price']['id_shop'] = 0
+            price_data['specific_price']['id_cart'] = 0
+            price_data['specific_price']['id_currency'] = 0
+            price_data['specific_price']['id_country'] = 0
+            price_data['specific_price']['id_group'] = 0
+            price_data['specific_price']['id_customer'] = 0
+            price_data['specific_price']['price'] = 0
+            price_data['specific_price']['reduction_tax'] = 0
+            price_data['specific_price']['from'] = '0000-00-00 00:00:00'
+            price_data['specific_price']['to'] = '0000-00-00 00:00:00'
+            price_data['specific_price']['reduction'] = price.dto_percent / 100;
+            price_data['specific_price']['reduction_type'] = 'percentage';
+            price_data['specific_price']['from_quantity'] = 1;
+            response_add = self._api.add('specific_prices', price_data)
+            price.ps_id = int(response_add['prestashop']['specific_price']['id'])
 
-        price_data = self._api.get('specific_prices', options={'schema': 'blank'})
-        price_data['specific_price']['id_product'] = price.combination_id.product_id.ps_id
-        price_data['specific_price']['id_product_attribute'] = price.combination_id.ps_id
-        price_data['specific_price']['id_shop'] = 0
-        price_data['specific_price']['id_cart'] = 0
-        price_data['specific_price']['id_currency'] = 0
-        price_data['specific_price']['id_country'] = 0
-        price_data['specific_price']['id_group'] = 0
-        price_data['specific_price']['id_customer'] = 0
-        price_data['specific_price']['price'] = 0
-        price_data['specific_price']['reduction_tax'] = 0
-        price_data['specific_price']['from'] = '0000-00-00 00:00:00'
-        price_data['specific_price']['to'] = '0000-00-00 00:00:00'
-        price_data['specific_price']['reduction'] = price.dto_percent / 100;
-        price_data['specific_price']['reduction_type'] = 'percentage';
-        price_data['specific_price']['from_quantity'] = 1;
-
-        response = self._api.add('specific_prices', price_data)
-        price.ps_id = int(response['prestashop']['specific_price']['id'])
         price.updated = False
         price.save()
-        return self._api.get('specific_prices', resource_id=price.ps_id)
+
+        if not response:
+            response = self._api.get('specific_prices', resource_id=price.ps_id)
+        return response
 
     def carregaNous(self):
         ps_man = []

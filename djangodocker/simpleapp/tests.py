@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import factory
 import pytest
-from . import models, mssql, controller, prestashop
+from . import models, mssql, controller, prestashop, mytools
 import random
 from django.core.exceptions import ObjectDoesNotExist,MultipleObjectsReturned
 import prestapyt
@@ -191,6 +191,18 @@ class TestControllerPrestashop:
         po_list = models.ProductOption.objects.all()
         assert len(po_list) is 4
 
+        # Update one
+        prod.icg_reference = '1234'
+        prod.manufacturer = ManufacturerFactory(ps_id = 2)
+        prod.icg_name = 'Modify product name'
+        prod.visible_web = False
+        prod_ps5 = self.p.get_or_create_product(prod)
+        assert prod_ps5['product']['id_manufacturer'] != prod_ps['product']['id_manufacturer']
+        assert mytools.get_ps_language(prod_ps5['product']['name']['language']) == 'Modify product name'
+        assert prod_ps5['product']['reference'] == '1234'
+        assert prod_ps5['product']['active'] == '0'
+        assert prod_ps5['product']['id'] == prod_ps['product']['id']
+
 
     def test_get_or_create_combination_ok(self):
         # Create one
@@ -198,6 +210,7 @@ class TestControllerPrestashop:
         assert not comb.discontinued
         comb_ps1 = self.p.get_or_create_combination(comb)
         assert comb.ps_id
+        comb_ps_id = comb.ps_id
         assert comb_ps1['combination']['id']
         po_list = models.ProductOption.objects.all()
         pov_list = models.ProductOptionValue.objects.all()
@@ -223,8 +236,15 @@ class TestControllerPrestashop:
         assert comb_ps4 is True
 
         #Exeption when try to eliminate not existing combination
+        comb.ps_id = comb_ps_id
         with pytest.raises(prestapyt.prestapyt.PrestaShopWebServiceError):
             self.p.get_or_create_combination(comb)
+
+        # Update one
+        comb2.ean13 = '1234567890123'
+        comb_ps5 = self.p.get_or_create_combination(comb2)
+        assert comb_ps5['combination']['ean13'] != comb_ps3['combination']['ean13']
+        assert comb_ps5['combination']['id'] == comb_ps3['combination']['id']
 
 
     def test_get_or_create_product_options_ok(self):
@@ -279,7 +299,23 @@ class TestControllerPrestashop:
         comb_ps3 = self.p.get_or_create_combination(comb2)
         sp_ps3 = self.p.get_or_create_specific_price(sp2)
         assert sp_ps1['specific_price']['id'] != sp_ps3['specific_price']['id']
+        sp2_ps_id = sp2.ps_id
 
+        # Update one
+        sp2.dto_percent = 10
+        sp_ps4 = self.p.get_or_create_specific_price(sp2)
+        assert sp_ps4['specific_price']['id'] == sp_ps3['specific_price']['id']
+        assert sp_ps4['specific_price']['reduction'] == '0.1'
+
+        # Delete one
+        sp2.dto_percent = 0
+        sp_ps5 = self.p.get_or_create_specific_price(sp2)
+        assert not sp2.ps_id
+
+        #Exeption when try to eliminate not existing combination
+        sp2.ps_id = sp2_ps_id
+        with pytest.raises(prestapyt.prestapyt.PrestaShopWebServiceError):
+            self.p.get_or_create_specific_price(sp2)
 
     def test_get_or_create_product_options_django_ok(self):
         # Create two

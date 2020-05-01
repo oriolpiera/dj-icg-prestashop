@@ -96,7 +96,7 @@ class Product(models.Model):
             if self.icg_reference != product.icg_reference:
                 result['icg_reference'] = product.icg_reference
             if self.manufacturer != product.manufacturer:
-                result['manufacturer'] = product.manufacturer.icg_id
+                result['manufacturer'] = str(product.manufacturer.icg_id)
             if self.icg_name != product.icg_name:
                 result['icg_name'] = product.icg_name
             if self.visible_web != product.visible_web:
@@ -107,7 +107,7 @@ class Product(models.Model):
                 product['product']['reference'] = self.icg_reference
                 modified = True
             if str(self.manufacturer.ps_id) != str(product['product']['id_manufacturer']):
-                product['product']['id_manufacturer'] = self.manufacturer.ps_id
+                product['product']['id_manufacturer'] = str(self.manufacturer.ps_id)
                 modified = True
             if self.icg_name != product['product']['name']['language']['value']:
                 #TODO: more than one language
@@ -220,49 +220,6 @@ class Price(models.Model):
             result['pvp_siva'] = product.pvp_siva
         return result
 
-    def update_price(self):
-        return {
-            "combinations": {
-                "id": self.combination_id.ps_id,
-                "id_product": self.combination_id.product_id.ps_id,
-                "price": self.pvp_siva,
-                "minimal_quantity": self.combination_id.minimal_quantity,
-            }
-        }
-
-    def update_discount(self):
-        return {
-            "specific_prices": {
-                "id": self.ps_id,
-                "reduction": str(float(self.dto_percent/100)),
-                "id_shop": 0,
-                "id_cart": 0,
-                "id_product": self.combination_id.product_id.ps_id,
-                "id_product_attribute": self.combination_id.ps_id,
-                "id_currency": 0,
-            }
-        }
-
-    def create_discount(self):
-        return {
-            "specific_prices": {
-                "reduction": str(float(self.dto_percent/100)),
-                "id_product": self.combination_id.product_id.ps_id,
-                "id_product_attribute": self.combination_id.ps_id,
-                "id_shop": 0,
-                "id_cart": 0,
-                "id_currency": 0,
-                "id_country": 0,
-                "id_group": 0,
-                "id_customer": 0,
-                "price": 0,
-                "reduction_tax": 0,
-                "from": '0000-00-00 00:00:00',
-                "to": '0000-00-00 00:00:00',
-                "reduction_type": 'percentage',
-                "from_quantity": 1,
-            }
-        }
 
 class ProductOption(models.Model):
     ps_id = models.IntegerField(blank=True, null=True, default=0)
@@ -340,38 +297,11 @@ class SpecificPrice(models.Model):
             result['dto_percent'] = product.dto_percent
         return result
 
-    def update_discount(self):
-        return {
-            "specific_prices": {
-                "id": self.ps_id,
-                "reduction": str(float(self.dto_percent/100)),
-                "id_shop": 0,
-                "id_cart": 0,
-                "id_product": self.combination_id.product_id.ps_id,
-                "id_product_attribute": self.combination_id.ps_id,
-                "id_currency": 0,
-            }
-        }
+    def comparePS(self, product):
+        if self.dto_percent != float(product['specific_price']['reduction']) * 100:
+            product['specific_price']['reduction'] = str(float(self.dto_percent/100))
+            return True, product
+        return False, {}
 
-    def create_discount(self):
-        return {
-            "specific_prices": {
-                "reduction": str(float(self.dto_percent/100)),
-                "id_product": self.combination_id.product_id.ps_id,
-                "id_product_attribute": self.combination_id.ps_id,
-                "id_shop": 0,
-                "id_cart": 0,
-                "id_currency": 0,
-                "id_country": 0,
-                "id_group": 0,
-                "id_customer": 0,
-                "price": 0,
-                "reduction_tax": 0,
-                "from": '0000-00-00 00:00:00',
-                "to": '0000-00-00 00:00:00',
-                "reduction_type": 'percentage',
-                "from_quantity": 1,
-            }
-        }
 
 # vim: et ts=4 sw=4
