@@ -226,7 +226,13 @@ class ControllerPrestashop(object):
             p = self.get_or_create_product_option_value(pov)
             ps_pov.append(p['product_option_value']['id'])
 
+        ps_sp = []
+        updated_specific_price = models.SpecificPrice.objects.filter(updated = True)
+        for sp in updated_specific_price:
+            s = self.get_or_create_specific_price(sp)
+            ps_sp.append(s['specific_price']['id'])
+
         return {'ps_man': ps_man, 'ps_prod': ps_prod, 'ps_po': ps_po,
-            'ps_pov': ps_pov, 'ps_comb': ps_comb}
+            'ps_pov': ps_pov, 'ps_comb': ps_comb, 'ps_sp': ps_sp}
 
 # vim: et ts=4 sw=4

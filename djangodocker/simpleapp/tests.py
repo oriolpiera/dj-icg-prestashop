@@ -5,6 +5,8 @@ from . import models, mssql, controller, prestashop, mytools
 import random
 from django.core.exceptions import ObjectDoesNotExist,MultipleObjectsReturned
 import prestapyt
+import pandas as pd
+from pandas._testing import assert_frame_equal
 
 class ManufacturerFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -332,12 +334,14 @@ class TestControllerPrestashop:
         assert len(models.ProductOption.objects.filter(updated = True)) is 2
 
     def test_carregaNous_ok(self):
-        comb = CombinationFactory.create_batch(2)
+        #comb = CombinationFactory.create_batch(2)
+        sp = SpecificPriceFactory.create_batch(2)
         assert len(models.Product.objects.all()) is 2
         assert len(models.Product.objects.filter(updated = True)) is 2
         assert len(models.ProductOption.objects.all()) is 0
         assert len(models.ProductOption.objects.filter(updated = True)) is 0
         assert len(models.Combination.objects.filter(updated = True)) is 2
+        assert len(models.SpecificPrice.objects.filter(updated = True)) is 2
         assert len(models.ProductOptionValue.objects.filter(updated = True)) is 0
 
         created = self.p.carregaNous()
@@ -349,30 +353,31 @@ class TestControllerPrestashop:
         assert len(models.ProductOption.objects.filter(updated = True)) is 0
         assert len(models.ProductOption.objects.exclude(ps_id = 0)) is 4
         assert len(models.ProductOptionValue.objects.exclude(ps_id = 0)) is 4
-        assert len(models.Combination.objects.exclude(ps_id = 0)) is 2
         assert len(models.ProductOptionValue.objects.filter(updated = True)) is 0
+        assert len(models.Combination.objects.exclude(ps_id = 0)) is 2
         assert len(models.Combination.objects.filter(updated = True)) is 0
+        assert len(models.SpecificPrice.objects.filter(updated = True)) is 0
+        assert len(models.SpecificPrice.objects.exclude(ps_id = 0)) is 2
 
         assert len(created['ps_man']) is 2
         assert len(created['ps_prod']) is 2
         assert len(created['ps_po']) is 4
         assert len(created['ps_pov']) is 4
         assert len(created['ps_comb']) is 2
+        assert len(created['ps_sp']) is 2
 
         for n in  created['ps_man']:
             assert self._api.get('manufacturers', n)
-
         for n in  created['ps_prod']:
             assert self._api.get('products', n)
-
         for n in  created['ps_po']:
             assert self._api.get('product_options', n)
-
         for n in  created['ps_pov']:
             assert self._api.get('product_option_values', n)
- 
         for n in created['ps_comb']:
             assert self._api.get('combinations', n)
+        for n in created['ps_sp']:
+            assert self._api.get('specific_prices', n)
 
         created2 = self.p.carregaNous()
 
@@ -381,6 +386,7 @@ class TestControllerPrestashop:
         assert len(created2['ps_po']) is 0
         assert len(created2['ps_pov']) is 0
         assert len(created2['ps_comb']) is 0
+        assert len(created2['ps_sp']) is 0
 
 @pytest.mark.django_db
 class TestControllerICGProducts:
@@ -560,62 +566,6 @@ class TestControllerICGProducts:
         assert comb1.pk is not comb4.pk
 
 
-@pytest.mark.django_db
-class TestControllerICGPrices:
-    @classmethod
-    def setup_class(self):
-        self.c = controller.ControllerICGPrices()
-
-    def test_get_create_or_update_price_createOne(self):
-        comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
-
-        price = self.c.get_create_or_update_price(comb, "15", "21", "14.12")
-
-        price_list = models.Price.objects.all()
-        assert len(price_list) is 1
-        assert eval(price.pvp_siva) == 14.12
-        assert eval(price.iva) == 21
-        assert eval(price.dto_percent) == 15
-
-    def test_get_create_or_update_price_createOneGetOne(self):
-        comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
-
-        price1 = self.c.get_create_or_update_price(comb, "15", "21", "14.12")
-        price2 = self.c.get_create_or_update_price(comb, "15", "21", "14.12")
-
-        price = models.Price.objects.get(combination_id = comb)
-        price_list = models.Price.objects.all()
-        assert len(price_list) is 1
-        assert price1.pk is price2.pk
-
-    def test_get_create_or_update_price_createOneUpdateOne(self):
-        comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
-
-        price1 = self.c.get_create_or_update_price(comb, "15", "21", "14.12")
-        price2 = self.c.get_create_or_update_price(comb, "15", "16", "13.12")
-
-        price = models.Price.objects.get(combination_id = comb)
-        price_list = models.Price.objects.all()
-        assert len(price_list) is 1
-        assert price1.pk is price2.pk
-        assert price.pvp_siva == 13.12
-        assert price.iva == 16
-        assert price.dto_percent == 15
-
-    def test_get_create_or_update_price_createTwo(self):
-        prod = ProductFactory()
-        comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id = prod)
-        comb2 = CombinationFactory(icg_talla="1", icg_color="***", product_id = prod)
-
-        price1 = self.c.get_create_or_update_price(comb1, "15", "21", "14.12")
-        price2 = self.c.get_create_or_update_price(comb2, "15", "16", "13.12")
-
-        price_list = models.Price.objects.all()
-        prod_list = models.Product.objects.all()
-        assert len(prod_list) is 1
-        assert len(price_list) is 2
-        assert price1.pk is not price2.pk
-
     def test_saveNewPrices(self):
         comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
         comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7499)
@@ -636,9 +586,45 @@ class TestControllerICGPrices:
         prod_list = models.Product.objects.all()
         man_list = models.Manufacturer.objects.all()
         comb_list = models.Combination.objects.all()
+        sp_list = models.SpecificPrice.objects.all()
         assert len(prod_list) is 6
         assert len(comb_list) is 10
+        assert len(sp_list) is 10
 
+    def test_get_create_or_update_SpecificPriceOk(self):
+        # Create One
+        comb = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
+        sp1 = self.c.get_create_or_update('SpecificPrice', {'combination_id': comb},
+            {'dto_percent': 20})
+        sp_list = models.SpecificPrice.objects.all()
+        assert len(sp_list) == 1
+        assert sp1.dto_percent == 20
+
+        # Get one
+        sp2 = self.c.get_create_or_update('SpecificPrice', {'combination_id': comb},
+            {'dto_percent': 20})
+        sp_list = models.SpecificPrice.objects.all()
+        assert len(sp_list) is 1
+        assert sp1.pk is sp2.pk
+
+        # Update one
+        sp3 = self.c.get_create_or_update('SpecificPrice', {'combination_id': comb},
+            {'dto_percent': 30})
+        sp_list = models.SpecificPrice.objects.all()
+        sp4 =  models.SpecificPrice.objects.get(pk=sp1.pk)
+        assert len(sp_list) is 1
+        assert sp1.pk is sp3.pk
+        assert sp4.fields_updated == "{'dto_percent': 30}"
+        assert sp4.dto_percent == 30
+
+        # Creates other
+        prod6 = ProductFactory(icg_id = 7503)
+        comb2 = CombinationFactory(icg_talla="S.150ML", icg_color="***", product_id=prod6)
+        sp5 = self.c.get_create_or_update('SpecificPrice', {'combination_id': comb2},
+            {'dto_percent': 10})
+        sp_list = models.SpecificPrice.objects.all()
+        assert len(sp_list) is 2
+        assert sp5.pk is not sp1.pk
 
 
 @pytest.mark.django_db
@@ -713,5 +699,96 @@ class TestControllerStocks:
         comb_list = models.Combination.objects.all()
         assert len(prod_list) is 8
         assert len(comb_list) is 10
+
+
+class TestMSSQL:
+    @classmethod
+    def setup_class(self):
+        self.ms = mssql.MSSQL()
+
+    def test_newProduct(self):
+        ms = mssql.MSSQL()
+        np  = ms.newProducts('')
+        data = {0: [930061,7500,7500,7500,7501,7501,7502,7503,7503,7504],
+            1: ['7498','0930095','0930095','0930095','0930161','0930161','0930046',
+                '0930136','0930136','0930243'],
+            2: ['***','12','24','8','250ML','75ML','***','S.150ML','S.400ML','11 PIEZAS'],
+            3: ['***','CAR 12 ML','CAR 12 ML','CAR 12 ML','***','***','***','***','***','MADERA'],
+            4: ['8712079332730','8712079312930','8712079312947','8712079312923','8712079316013',
+                '8712079315993','8712079344436','8712079000677','8712079000691','8712079343378'],
+            5: [' ','8712079312800','8712079312817','8712079312794',' ','8712079315979',
+                '8712079260279','8712079092610','8712079092641',' '],
+            6: ['Caballete Taller Haya Vesta Kit ArtCreat','Caja Tempera ArtCreation',
+                'Caja Tempera ArtCreation','Caja Tempera ArtCreation','Medio Pintar Cobra',
+                'Medio Pintar Cobra','Caballete Caja Trípode Haya Aurore ArtCr',
+                'Fijador Concentrado Talens','Fijador Concentrado Talens','Set Medias Lunas Talens'],
+            7: [1,1,1,1,1,1,1,1,1,1],
+            8: [21,21,21,21,21,21,21,21,21,21],
+            9: [93,93,93,93,93,93,93,93,93,93],
+            10: ['TALENS ESPAÑA S.A.U.','TALENS ESPAÑA S.A.U.','TALENS ESPAÑA S.A.U.',
+                'TALENS ESPAÑA S.A.U.','TALENS ESPAÑA S.A.U.','TALENS ESPAÑA S.A.U.',
+                'TALENS ESPAÑA S.A.U.','TALENS ESPAÑA S.A.U.','TALENS ESPAÑA S.A.U.',
+                'TALENS ESPAÑA S.A.U.'],
+            11: ['2020-01-20 16:55:35','2020-01-29 13:36:12','2020-01-29 13:36:12',
+                '2020-01-29 13:36:12','2019-10-16 10:03:08','2019-10-16 10:03:08',
+                '2020-03-10 18:03:48','2020-01-14 17:12:39','2020-01-14 17:12:39',
+                '2020-02-24 15:29:51'],
+            12: ['T','T','T','T','T','T','T','T','T','T'],
+            13: [14000,14000,14000,14000,30000,30000,14000,90000,90000,99990],
+            14: ['ARTECREATION','ARTECREATION','ARTECREATION','ARTECREATION','COBRA',
+                'COBRA','ARTECREATION','TALENS','TALENS','***'],
+            15: ['F','F','F','F','F','F','F','F','F','F']}
+        test_np = pd.DataFrame(data)
+        #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+            #print(np)
+            #print(test_np)
+        assert_frame_equal(np, test_np)
+
+    def test_newPrices(self):
+        ms = mssql.MSSQL()
+        np  = ms.newPrices('')
+        data = {0: [1,1,1,1,1,1,1,1,1,1], 
+            1: [7498,7499,7500,7500,7500,7501,7501,7502,7503,7503],
+            2: ['***','***','12','24','8','250ML','75ML','***','S.150ML','S.400ML'],
+            3: ['***','***','CAR 12 ML','CAR 12 ML','CAR 12 ML','***','***','***','***','***'],
+            4: [135.45,300.00,9.00,16.00,7.00,19.00,7.00,167.90,9.00,14.00],
+            5: [30, 30, 20, 20, 20, 20, 20, 30, 25, 25],
+            6: [94.815,210.000,7.200,12.800,5.600,15.200,5.600,117.530,6.750,10.500],
+            7: [40.635,90.000,1.800,3.200,1.400,3.800,1.400,50.370,2.250,3.500],
+            8: [21,21,21,21,21,21,21,21,21,21], 
+            9: [111.94,247.93,7.44,13.22,5.79,15.70,5.79,138.76,7.44,11.57],
+            10: [78.36,173.55,5.95,10.58,4.63,12.56,4.63,97.13,5.58,8.68],
+            11: [33.58,74.38,1.49,2.64,1.16,3.14,1.16,41.63,1.86,2.89],
+            12: ['2020-01-20 16:55:35','2018-01-24 11:42:23','2018-11-22 17:49:39',
+                '2018-11-22 17:49:39','2018-11-22 17:49:39','2020-01-27 17:47:37',
+                '2020-01-27 17:47:37','2020-01-20 16:54:51','2018-11-22 17:49:39','2018-11-22 17:49:39']}
+
+        test_np = pd.DataFrame(data)
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+            print(np)
+            print(test_np)
+        assert_frame_equal(np, test_np)
+
+    def test_newStocks(self):
+        ms = mssql.MSSQL()
+        np  = ms.newStocks('')
+        data = {0: [7498,7500,7500,7501,7502,7503,7504, 7504, 7506, 7509],
+            1: ['***','12','24','75ML','***','S.400ML', '11 PIEZAS', '5 PIEZAS', '***','***'],
+            2: ['***','CAR 12 ML','CAR 12 ML','***','***','***','MADERA','MADERA','***','***'],
+            3: [1,1,1,1,1,1,1,1,1,1], 
+            4: ["Pintor Fortuny","Pintor Fortuny","Pintor Fortuny","Pintor Fortuny","Pintor Fortuny",
+                "Pintor Fortuny","Pintor Fortuny","Pintor Fortuny","Pintor Fortuny","Pintor Fortuny"],
+            5: [5,4,6,2,2,66,42,12,12,190],
+            6: [0,0,0,0,0,0,0,0,0,0],
+            7: [5,4,6,2,2,66,42,12,12,190],
+            8: ['2020-03-06 19:24:47','2020-04-22 18:40:13','2020-03-14 13:37:17',
+                '2020-03-11 18:35:55','2020-03-10 18:03:48','2020-04-29 10:33:49',
+                '2020-03-14 13:04:02','2020-04-25 13:16:10','2019-10-14 19:01:12','2020-04-25 13:16:10']}
+
+        test_np = pd.DataFrame(data)
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+            print(np)
+            print(test_np)
+        assert_frame_equal(np, test_np)
 
 # vim: et ts=4 sw=4

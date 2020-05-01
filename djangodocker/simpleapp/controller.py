@@ -64,62 +64,29 @@ class ControllerICGProducts(object):
                 {'discontinued': discontinued, 'ean13': ean13})
 
 
-class ControllerICGPrices(object):
-    def __init__(self, url_base=''):
-        self._url_base = url_base
-        self.logger = logging.getLogger(__name__)
-
-
-    def get_create_or_update_product(self, icg_id):
-        return models.Product.objects.get(icg_id = icg_id)
-
-
-    def get_create_or_update_combination(self, product_id, icg_color, icg_talla):
-        return models.Combination.objects.get(product_id = product_id, icg_color = str(icg_color),
-             icg_talla = str(icg_talla))
-
-
-    def get_create_or_update_price(self, combination_id, dto_percent, iva, pvp_siva):
-        comb = None
-        pc_new = models.Price(combination_id = combination_id, dto_percent = dto_percent,
-            iva = iva, pvp_siva=pvp_siva)
-
-        try:
-            pc_old = models.Price.objects.get(combination_id = combination_id)
-            updated = pc_old.compare(pc_new)
-            if updated:
-                models.Price.objects.filter(pk=pc_old.pk).update(**updated)
-                self.logger.info("Preu modificat: %s", str(updated))
-            comb = pc_old
-        except ObjectDoesNotExist:
-            self.logger.error("Preu creat: %s ", str(combination_id))
-            pc_new.save()
-            comb = pc_new
-        except MultipleObjectsReturned:
-            self.logger.error("Preu torna més d'un: %s",
-                str(models.Price.objects.filter(combination_id = combination_id)))
-            raise MultipleObjectsReturned(e)
-
-        return comb
-
-
     def saveNewPrices(self, url_base=None):
         if not url_base:
             url_base = self._url_base
         ms = mssql.MSSQL()
         np  = ms.newPrices(url_base)
         for index,row in np.iterrows():
-            icg_id = eval(row[1])
+            icg_id = row[1]
             icg_talla = row[2].strip('\"')
             icg_color = row[3].strip('\"')
-            dto_percent = eval(row[5])
-            iva = eval(row[8])
-            pvp_siva = eval(row[9])
+            dto_percent = row[5]
+            iva = row[8]
+            pvp_siva = row[9]
             #icg_modified_date = row[12]
 
-            prod = self.get_create_or_update_product(icg_id)
-            comb = self.get_create_or_update_combination(prod, icg_color, icg_talla)
-            comb2 = self.get_create_or_update_price(comb, dto_percent, iva, pvp_siva)
+
+            prod = self.get_create_or_update('Product', {'icg_id': icg_id},{})
+            comb = self.get_create_or_update('Combination', {'product_id': prod,
+                'icg_color': icg_color, 'icg_talla': icg_talla},{})
+
+            if dto_percent:
+                spec_price = self.get_create_or_update('SpecificPrice', {'combination_id': comb},
+                    {'dto_percent': dto_percent})
+            #(comb, dto_percent, iva, pvp_siva)
 
 
 
@@ -163,10 +130,10 @@ class ControllerICGStocks(object):
         ms = mssql.MSSQL()
         np = ms.newStocks(url_base)
         for index,row in np.iterrows():
-            icg_id = eval(row[0])
+            icg_id = row[0]
             icg_talla = row[1].strip('\"')
             icg_color = row[2].strip('\"')
-            icg_stock = eval(row[7])
+            icg_stock = row[7]
             #icg_modified_date = row[8]
 
             prod = self.get_create_or_update_product(icg_id)

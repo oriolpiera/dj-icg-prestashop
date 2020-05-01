@@ -51,7 +51,7 @@ class Product(models.Model):
     icg_name = models.CharField(max_length=100)
     ps_id = models.IntegerField(blank=True, null=True, default=0)
     ps_name = models.CharField(max_length=100, default='')
-    manufacturer = models.ForeignKey('Manufacturer', on_delete=models.DO_NOTHING)
+    manufacturer = models.ForeignKey('Manufacturer', on_delete=models.DO_NOTHING, null=True)
     short_description = models.TextField(blank=True)
     long_description = models.TextField(blank=True)
     created_date = models.DateTimeField(default=timezone.now)
@@ -84,7 +84,7 @@ class Product(models.Model):
             result['icg_name'] = product.icg_name
         if self.icg_reference != product.icg_reference:
             result['icg_reference'] = product.icg_reference
-        if self.manufacturer != product.manufacturer:
+        if product.manufacturer and  (self.manufacturer != product.manufacturer):
             result['manufacturer'] = product.manufacturer.icg_id
         if self.visible_web != product.visible_web:
             result['visible_web'] = "0"
@@ -279,13 +279,14 @@ class SpecificPrice(models.Model):
     ps_id = models.IntegerField(default=0)
     ps_reduction = models.FloatField(default=0)
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE, primary_key=True)
-    dto_percent = models.FloatField(default=0)
+    dto_percent = models.IntegerField(default=0)
     dto_euros = models.FloatField(default=0)
     dto_euros_siva = models.FloatField(default=0)
     created_date = models.DateTimeField(default=timezone.now)
     modified_date = models.DateTimeField(blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
-    updated = models.BooleanField(default=False)
+    updated = models.BooleanField(default=True)
+    fields_updated = models.CharField(max_length=200, default="{}")
 
     class Meta:
         verbose_name = 'specific_price'
@@ -302,6 +303,12 @@ class SpecificPrice(models.Model):
             product['specific_price']['reduction'] = str(float(self.dto_percent/100))
             return True, product
         return False, {}
+
+    def compareICG(self, specific_price):
+        result = {}
+        if self.dto_percent != specific_price.dto_percent:
+            result['dto_percent'] = specific_price.dto_percent
+        return result
 
 
 # vim: et ts=4 sw=4

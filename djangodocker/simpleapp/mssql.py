@@ -13,33 +13,36 @@ class MSSQL(object):
             filename = urlbase + filename
         else:
             filename = os.path.join(os.path.dirname(__file__), filename)
-        data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None)
+        data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None,
+            dtype={0: 'int', 1: 'object', 4: 'object', 5: 'object' })
         return data
 
 
     def newPrices(self, urlbase):
         # Prices line
         # Tarifa	Codarticulo	Talla	Color	Pbruto_iva	Dto_porc	Pneto_iva	Dto_impote_iva	Iva	Pbruto_s_iva	Pneto_s_iva	Dto_importe_s_iva	Fecha_modificado
-        # """1""","""7498""","""***""","""***""","""135.45""","""30""","""94.815""","""40.635""","""21""","""111.94""","""78.36""","""33.58""","""2020-01-20 16:55:35"""
+        # 1;7498;***;***;135.45;30;94.815;40.635;21;111.94;78.36;33.58;"2020-01-20 16:55:35"
 
         filename = 'csvNousPreus.php'
         if urlbase:
             filename = urlbase + filename
         else:
             filename = os.path.join(os.path.dirname(__file__), filename)
-        data = pd.read_csv(filename, delimiter=",", encoding="utf-8", header=None)
+        data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None,
+            dtype={1: 'int',2: 'object',3: 'object', 5: 'int'})
         return data
 
     def newStocks(self, urlbase):
         # Stock line
         # Codarticulo	Talla	Color	Codalmacen	Nombre_alm	Stock_real	Stock_Aservir	Stock_disponible	Fecha_Modificado
-        # """7498""","""***""","""***""","""01""","""Pintor Fortuny""","""5""","""0""","""5""","""2020-03-06 19:24:47"""
-        filename = 'csvNousStocsk.php'
+        # 7498;***;***;01;"Pintor Fortuny";5;0;5;"2020-03-06 19:24:47"
+
+        filename = 'csvNousStocks.php'
         if urlbase:
             filename = urlbase + filename
         else:
             filename = os.path.join(os.path.dirname(__file__), filename)
-        data = pd.read_csv(filename, delimiter=",", encoding="utf-8", header=None)
+        data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None)
         return data
 
 # vim: et ts=4 sw=4
