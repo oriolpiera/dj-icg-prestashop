@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from django.db import models
 from django.utils import timezone
-from . import mytools
+from . import mytools, mssql, constants
+import csv
 
 class Manufacturer(models.Model):
     """
@@ -21,8 +22,10 @@ class Manufacturer(models.Model):
         verbose_name = 'manufacturer'
         verbose_name_plural = 'manufacturers'
 
+
     def saved_in_prestashop(self):
         return ps_id
+
 
     def compareICG(self, man):
         result = {}
@@ -131,6 +134,17 @@ class Product(models.Model):
             changed = True
         print(man)
         return changed, man
+
+    def updateFromICG(self):
+        #import pudb;pu.db
+        ms = mssql.MSSQL()
+        result = ms.getProductData(constants.URLBASE, self.icg_reference)
+        data = result.split(';')
+        self.icg_id = int(eval(data[0]))
+        self.icg_reference = data[1].replace('"','')
+        self.icg_name = data[6].replace('"','')
+        self.save()
+        return True
 
 
 class Combination(models.Model):

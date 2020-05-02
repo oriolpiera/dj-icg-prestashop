@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import os
+import requests
+from .constants  import *
 
 class MSSQL(object):
     def newProducts(self, urlbase):
@@ -44,5 +46,77 @@ class MSSQL(object):
             filename = os.path.join(os.path.dirname(__file__), filename)
         data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None)
         return data
+
+
+    def getProductData(self, urlbase, icg_reference):
+        filename = 'getProductData.php'
+        if urlbase:
+            filename = urlbase + filename
+        else:
+            filename = os.path.join(os.path.dirname(__file__), filename)
+
+        sql = "SELECT TOP 1 * FROM view_imp_articles WHERE Referencia = '" + icg_reference + "'"
+        obj = {'token': MSSQL_TOKEN, 'sql': sql}
+
+        result = requests.post(filename, data = obj)
+
+        if result.status_code == 200:
+            return result.text
+        else:
+            return False
+
+    def getCombinationData(self, urlbase, icg_reference, icg_talla, icg_color):
+        filename = 'getProductData.php'
+        if urlbase:
+            filename = urlbase + filename
+        else:
+            filename = os.path.join(os.path.dirname(__file__), filename)
+
+        sql = ("SELECT TOP 1 * FROM view_imp_articles WHERE Referencia = '" + icg_reference +
+            "' and TALLA = '" + icg_talla + "' and COLOR ='" + icg_color + "'")
+        obj = {'token': MSSQL_TOKEN, 'sql': sql}
+
+        result = requests.post(filename, data = obj)
+
+        if result.status_code == 200:
+            return result.text
+        else:
+            return False
+
+    def getPriceData(self, urlbase, icg_id, icg_talla, icg_color):
+        filename = 'getProductData.php'
+        if urlbase:
+            filename = urlbase + filename
+        else:
+            filename = os.path.join(os.path.dirname(__file__), filename)
+
+        sql = ("SELECT TOP 1 * FROM view_imp_preus WHERE Codarticulo = " + str(icg_id) +
+            " and Talla = '" + icg_talla + "' and Color ='" + icg_color + "'")
+        obj = {'token': MSSQL_TOKEN, 'sql': sql}
+
+        result = requests.post(filename, data = obj)
+
+        if result.status_code == 200:
+            return result.text
+        else:
+            return False
+
+    def getStockData(self, urlbase, icg_id, icg_talla, icg_color):
+        filename = 'getProductData.php'
+        if urlbase:
+            filename = urlbase + filename
+        else:
+            filename = os.path.join(os.path.dirname(__file__), filename)
+
+        sql = ("SELECT TOP 1 * FROM view_imp_stocks WHERE Codarticulo = " + str(icg_id) +
+            " and Talla = '" + icg_talla + "' and Color ='" + icg_color + "'")
+        obj = {'token': MSSQL_TOKEN, 'sql': sql}
+
+        result = requests.post(filename, data = obj)
+
+        if result.status_code == 200:
+            return result.text
+        else:
+            return False
 
 # vim: et ts=4 sw=4

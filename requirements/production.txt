@@ -1,1 +1,4 @@
 -r base.txt
+dj_database_url
+django-heroku
+gunicorn

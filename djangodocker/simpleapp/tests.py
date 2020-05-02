@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 import factory
 import pytest
-from . import models, mssql, controller, prestashop, mytools
+from . import models, mssql, controller, prestashop, mytools, constants
 import random
 from django.core.exceptions import ObjectDoesNotExist,MultipleObjectsReturned
 import prestapyt
 import pandas as pd
 from pandas._testing import assert_frame_equal
+import os
 
 class ManufacturerFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -127,6 +128,12 @@ class TestSimpleApp:
         price_list = models.Price.objects.all()
         assert len(comb_list) is 1
         assert len(price_list) is 1
+
+    def test__updateFromICG(self):
+        p = ProductFactory()
+        p.icg_reference = '0930095'
+        result = p.updateFromICG()
+        assert result
 
 
 @pytest.mark.django_db
@@ -726,8 +733,7 @@ class TestMSSQL:
         self.ms = mssql.MSSQL()
 
     def test_newProduct(self):
-        ms = mssql.MSSQL()
-        np  = ms.newProducts('')
+        np  = self.ms.newProducts('')
         data = {0: [930061,7500,7500,7500,7501,7501,7502,7503,7503,7504],
             1: ['7498','0930095','0930095','0930095','0930161','0930161','0930046',
                 '0930136','0930136','0930243'],
@@ -764,8 +770,7 @@ class TestMSSQL:
         assert_frame_equal(np, test_np)
 
     def test_newPrices(self):
-        ms = mssql.MSSQL()
-        np  = ms.newPrices('')
+        np  = self.ms.newPrices('')
         data = {0: [1,1,1,1,1,1,1,1,1,1,1],
             1: [7498,7499,7500,7500,7500,7501,7501,7502,7503,7503,7503],
             2: ['***','***','12','24','8','250ML','75ML','***','S.150ML','S.400ML','S.600ML'],
@@ -784,14 +789,13 @@ class TestMSSQL:
                 '2018-11-22 17:49:39','2018-11-22 17:49:39']}
 
         test_np = pd.DataFrame(data)
-        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-            print(np)
-            print(test_np)
+        #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        #    print(np)
+        #    print(test_np)
         assert_frame_equal(np, test_np)
 
     def test_newStocks(self):
-        ms = mssql.MSSQL()
-        np  = ms.newStocks('')
+        np  = self.ms.newStocks('')
         data = {0: [7498,7500,7500,7501,7502,7503,7504, 7504, 7506, 7509],
             1: ['***','12','24','75ML','***','S.400ML', '11 PIEZAS', '5 PIEZAS', '***','***'],
             2: ['***','CAR 12 ML','CAR 12 ML','***','***','***','MADERA','MADERA','***','***'],
@@ -806,9 +810,44 @@ class TestMSSQL:
                 '2020-03-14 13:04:02','2020-04-25 13:16:10','2019-10-14 19:01:12','2020-04-25 13:16:10']}
 
         test_np = pd.DataFrame(data)
-        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-            print(np)
-            print(test_np)
+        #with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        #    print(np)
+        #    print(test_np)
         assert_frame_equal(np, test_np)
+
+    @pytest.mark.skipif('CODECOV_TOKEN' in os.environ, reason="Can't test from CI")
+    def test_getProductData(self):
+        result = self.ms.getProductData(constants.URLBASE,'0930243')
+        assert result == ('"7504";"0930243";"11 PIEZAS";"MADERA";"8712079343378";"' +
+            ' ";"Set Medias Lunas Talens";"1";"21";"93";"TALENS ESPAÑA S.A.U.";' +
+            '"2020-02-24 15:29:51";"T";"99990";"***";"F";\n')
+        result = self.ms.getProductData(constants.URLBASE + "random",'NOTVALID')
+        assert not result
+
+    @pytest.mark.skipif('CODECOV_TOKEN' in os.environ, reason="Can't test from CI")
+    def test_getCombinationData(self):
+        result = self.ms.getCombinationData(constants.URLBASE,'0930095','12','CAR 12 ML')
+        assert result == ('"7500";"0930095";"12";"CAR 12 ML";"8712079312930";' +
+            '"8712079312800";"Caja Témpera ArtCreation";"1";"21";"93";"TALENS ESPAÑA S.A.U.";' +
+            '"2020-01-29 13:36:12";"T";"14000";"ARTECREATION";"F";\n')
+        result = self.ms.getCombinationData(constants.URLBASE + "random",'NOTVALID', 'NOT', 'VALID')
+        assert not result
+
+    @pytest.mark.skipif('CODECOV_TOKEN' in os.environ, reason="Can't test from CI")
+    def test_getPriceData(self):
+        result = self.ms.getPriceData(constants.URLBASE,7498,'***','***')
+        assert result == ('"1";"7498";"***";"***";"135.45";"30";"94.815";"40.635";"21";' +
+            '"111.94";"78.36";"33.58";"2020-01-20 16:55:35";\n')
+        result = self.ms.getPriceData(constants.URLBASE + "random",'NOTVALID', 'NOT', 'VALID')
+        assert not result
+
+    @pytest.mark.skipif('CODECOV_TOKEN' in os.environ, reason="Can't test from CI")
+    def test_getStockData(self):
+        result = self.ms.getStockData(constants.URLBASE,7498,'***','***')
+        assert result == ('"7498";"***";"***";"01";"Pintor Fortuny";"5";"0";"5";' +
+            '"2020-03-06 19:24:47";\n')
+        result = self.ms.getStockData(constants.URLBASE + "random",'NOTVALID', 'NOT', 'VALID')
+        assert not result
+
 
 # vim: et ts=4 sw=4

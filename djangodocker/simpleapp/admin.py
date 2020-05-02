@@ -78,10 +78,11 @@ admin.site.register(SpecificPrice, SpecificPriceAdmin)
 
 
 class ProductesPrestashop(admin.ModelAdmin):
+    actions = ["actualitzar_ICG"]
     fields = ['icg_id', 'icg_reference', 'icg_name', 'ps_id', 'ps_name',
         'modified_date','icg_modified_date', 'visible_web', 'manufacturer', 'manufacturer_name']
     readonly_fields = ['manufacturer_name', 'icg_modified_date', 'modified_date', 'icg_id',
-        'icg_reference', 'icg_name']
+        'icg_name']
     list_display = ['icg_id', 'icg_reference', 'icg_name', 'ps_id', 'ps_name',
         'modified_date','icg_modified_date', 'visible_web', 'manufacturer_name']
     search_fields = ['icg_reference', 'icg_name', 'ps_name']
@@ -89,5 +90,7 @@ class ProductesPrestashop(admin.ModelAdmin):
     def manufacturer_name(self, instance):
         return instance.manufacturer.icg_name
 
+    def actualitzar_ICG(self, request, queryset):
+        queryset.first().updateFromICG()
 
 admin.site.register(Product, ProductesPrestashop)
