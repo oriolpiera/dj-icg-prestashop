@@ -3,6 +3,8 @@ from django.db import models
 from django.utils import timezone
 from . import mytools, mssql, constants
 import csv
+from django.utils.timezone import make_aware
+from datetime import datetime
 
 class Manufacturer(models.Model):
     """
@@ -58,12 +60,11 @@ class Product(models.Model):
     short_description = models.TextField(blank=True)
     long_description = models.TextField(blank=True)
     created_date = models.DateTimeField(default=timezone.now)
-    modified_date = models.DateTimeField(blank=True, null=True)
+    modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
     visible_web = models.BooleanField(default=True)
     fields_updated = models.CharField(max_length=200, default="{}")
-
 
     class Meta:
         verbose_name = 'product'
@@ -136,14 +137,15 @@ class Product(models.Model):
         return changed, man
 
     def updateFromICG(self):
-        #import pudb;pu.db
         ms = mssql.MSSQL()
         result = ms.getProductData(constants.URLBASE, self.icg_reference)
-        data = result.split(';')
-        self.icg_id = int(eval(data[0]))
-        self.icg_reference = data[1].replace('"','')
-        self.icg_name = data[6].replace('"','')
-        self.save()
+        for index,row in result.iterrows():
+            self.icg_id = row[0]
+            self.icg_reference = row[1]
+            self.icg_name = row[6].encode('utf-8')
+            icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
+            self.updated = True
+            self.save()
         return True
 
 
@@ -155,7 +157,7 @@ class Combination(models.Model):
     ean13 = models.CharField(max_length=15, blank=True)
     minimal_quantity = models.IntegerField(default=1)
     created_date = models.DateTimeField(default=timezone.now)
-    modified_date = models.DateTimeField(blank=True, null=True)
+    modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     updated = models.BooleanField(default=True)
     discontinued = models.BooleanField(default=False) #descatalogado
     fields_updated = models.CharField(max_length=200, default="{}")
@@ -170,7 +172,6 @@ class Combination(models.Model):
 
     def saved_in_prestashop(self):
         return ps_id
-
 
     def compare(self, comb):
         modified = False
@@ -190,12 +191,23 @@ class Combination(models.Model):
             result['discontinued'] = comb.discontinued
         return result
 
+    def updateFromICG(self):
+        ms = mssql.MSSQL()
+        result = ms.getCombinationData(constants.URLBASE, self.icg_reference,
+            self.icg_talla, self.icg_color)
+        for index,row in result.iterrows():
+            self.ean13 = row[4]
+            self.discontinued = True if row[15] == 'T' else False
+            self.updated = True
+            self.save()
+        return True
+
 class Stock(models.Model):
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE)
     icg_stock = models.IntegerField(default=0)
     ps_stock = models.IntegerField(default=0)
     created_date = models.DateTimeField(default=timezone.now)
-    modified_date = models.DateTimeField(blank=True, null=True)
+    modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=False)
     fields_updated = models.CharField(max_length=200, default="{}")
@@ -210,6 +222,17 @@ class Stock(models.Model):
             result['icg_stock'] = stock.icg_stock
         return result
 
+    def updateFromICG(self):
+        ms = mssql.MSSQL()
+        result = ms.getStockData(constants.URLBASE, self.combination_id.product_id.icg_id,
+            self.combination_id.icg_talla, self.combination_id.icg_color)
+        for index,row in result.iterrows():
+            self.icg_stock = row[7]
+            self.icg_modified_date = make_aware(datetime.strptime(row[8], '%Y-%m-%d %H:%M:%S'))
+            self.updated = True
+            self.save()
+        return True
+
 class Price(models.Model):
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE, primary_key=True)
     ps_id = models.IntegerField(default=0)
@@ -219,7 +242,7 @@ class Price(models.Model):
     pvp_siva = models.FloatField(default=0)
     preu_oferta_siva = models.FloatField(default=0)
     created_date = models.DateTimeField(default=timezone.now)
-    modified_date = models.DateTimeField(blank=True, null=True)
+    modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=False)
     fields_updated = models.CharField(max_length=200, default="{}")
@@ -244,6 +267,20 @@ class Price(models.Model):
             result['pvp_siva'] = price.pvp_siva
         return result
 
+    def updateFromICG(self):
+        ms = mssql.MSSQL()
+        result = ms.getPriceData(constants.URLBASE, self.combination_id.product_id.icg_id,
+            self.combination_id.icg_talla, self.combination_id.icg_color)
+        for index,row in result.iterrows():
+            self.iva = row[8]
+            self.pvp_siva = row[9]
+            self.icg_modified_date = make_aware(datetime.strptime(row[12], '%Y-%m-%d %H:%M:%S'))
+            self.pvp = row[4]
+            self.preu_oferta = float(row[4]) - float(row[7])
+            self.preu_oferta = row[10]
+            self.updated = True
+            self.save()
+        return True
 
 class ProductOption(models.Model):
     ps_id = models.IntegerField(blank=True, null=True, default=0)
@@ -255,7 +292,7 @@ class ProductOption(models.Model):
     ps_iscolor = models.BooleanField(default=False)
     product_id = models.ForeignKey('Product', on_delete=models.CASCADE)
     created_date = models.DateTimeField(default=timezone.now)
-    modified_date = models.DateTimeField(blank=True, null=True)
+    modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     updated = models.BooleanField(default=True)
 
     class Meta:
@@ -283,7 +320,7 @@ class ProductOptionValue(models.Model):
     ps_name = models.CharField(max_length=100, default='')
     po_id = models.ForeignKey('ProductOption', on_delete=models.CASCADE)
     created_date = models.DateTimeField(default=timezone.now)
-    modified_date = models.DateTimeField(blank=True, null=True)
+    modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     updated = models.BooleanField(default=True)
 
     class Meta:
@@ -307,7 +344,7 @@ class SpecificPrice(models.Model):
     dto_euros = models.FloatField(default=0)
     dto_euros_siva = models.FloatField(default=0)
     created_date = models.DateTimeField(default=timezone.now)
-    modified_date = models.DateTimeField(blank=True, null=True)
+    modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
     fields_updated = models.CharField(max_length=200, default="{}")
@@ -334,5 +371,17 @@ class SpecificPrice(models.Model):
             result['dto_percent'] = specific_price.dto_percent
         return result
 
+    def updateFromICG(self):
+        ms = mssql.MSSQL()
+        result = ms.getPriceData(constants.URLBASE, self.combination_id.product_id.icg_id,
+            self.combination_id.icg_talla, self.combination_id.icg_color)
+        for index,row in result.iterrows():
+            self.dto_percent = row[5]
+            self.dto_euros = row[7]
+            self.dto_euros_siva = row[11]
+            self.icg_modified_date = make_aware(datetime.strptime(row[12], '%Y-%m-%d %H:%M:%S'))
+            self.updated = True
+            self.save()
+        return True
 
 # vim: et ts=4 sw=4

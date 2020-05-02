@@ -129,11 +129,46 @@ class TestSimpleApp:
         assert len(comb_list) is 1
         assert len(price_list) is 1
 
-    def test__updateFromICG(self):
+    def test__updateFromICG_product(self):
         p = ProductFactory()
         p.icg_reference = '0930095'
         result = p.updateFromICG()
         assert result
+
+    def test__updateFromICG_combination(self):
+        c = CombinationFactory()
+        c.updated = False
+        c.icg_reference = '0930095'
+        c.icg_talla = '12'
+        c.icg_color = 'CAR 12 ML'
+        result = c.updateFromICG()
+        assert result
+        assert c.updated
+
+    def test__updateFromICG_stock(self):
+        s  = StockFactory()
+        s.updated = False
+        s.combination_id.product_id.icg_id = 7500
+        s.combination_id.icg_talla = '12'
+        s.combination_id.icg_color = 'CAR 12 ML'
+        s.save()
+        result = s.updateFromICG()
+        assert result
+        assert s.updated
+
+    def test__updateFromICG_price(self):
+        c = CombinationFactory()
+        c.product_id.icg_id = 7500
+        c.icg_talla = '12'
+        c.icg_color = 'CAR 12 ML'
+        p = PriceFactory(combination_id = c)
+        p.updated = False
+
+        p.save()
+        result = p.updateFromICG()
+        assert result
+        assert p.updated
+
 
 
 @pytest.mark.django_db
@@ -817,37 +852,42 @@ class TestMSSQL:
 
     @pytest.mark.skipif('CODECOV_TOKEN' in os.environ, reason="Can't test from CI")
     def test_getProductData(self):
-        result = self.ms.getProductData(constants.URLBASE,'0930243')
-        assert result == ('"7504";"0930243";"11 PIEZAS";"MADERA";"8712079343378";"' +
-            ' ";"Set Medias Lunas Talens";"1";"21";"93";"TALENS ESPAÑA S.A.U.";' +
-            '"2020-02-24 15:29:51";"T";"99990";"***";"F";\n')
-        result = self.ms.getProductData(constants.URLBASE + "random",'NOTVALID')
-        assert not result
+        result = self.ms.getProductData(constants.URLBASE,'0930061')
+        data = {0: [7498], 1: ['0930061'], 2: ['***'], 3: ['***'], 4: ['8712079332730'],
+            5: [' '], 6: ['Caballete Taller Haya Vesta Kit ArtCreat'], 7: [1], 8: [21],
+            9: [93], 10: ['TALENS ESPAÑA S.A.U.'], 11: ['2020-01-20 16:55:35'],
+            12: ['T'], 13: [14000], 14: ['ARTECREATION'], 15: ['F']}
+        test_np = pd.DataFrame(data)
+        assert_frame_equal(result, test_np)
 
     @pytest.mark.skipif('CODECOV_TOKEN' in os.environ, reason="Can't test from CI")
     def test_getCombinationData(self):
-        result = self.ms.getCombinationData(constants.URLBASE,'0930095','12','CAR 12 ML')
-        assert result == ('"7500";"0930095";"12";"CAR 12 ML";"8712079312930";' +
-            '"8712079312800";"Caja Témpera ArtCreation";"1";"21";"93";"TALENS ESPAÑA S.A.U.";' +
-            '"2020-01-29 13:36:12";"T";"14000";"ARTECREATION";"F";\n')
-        result = self.ms.getCombinationData(constants.URLBASE + "random",'NOTVALID', 'NOT', 'VALID')
-        assert not result
+        result = self.ms.getCombinationData(constants.URLBASE,'0930061','***','***')
+        data = {0: [7498], 1: ['0930061'], 2: ['***'], 3: ['***'], 4: ['8712079332730'],
+            5: [' '], 6: ['Caballete Taller Haya Vesta Kit ArtCreat'], 7: [1], 8: [21],
+            9: [93], 10: ['TALENS ESPAÑA S.A.U.'], 11: ['2020-01-20 16:55:35'],
+            12: ['T'], 13: [14000], 14: ['ARTECREATION'], 15: ['F']}
+        test_np = pd.DataFrame(data)
+        assert_frame_equal(result, test_np)
 
     @pytest.mark.skipif('CODECOV_TOKEN' in os.environ, reason="Can't test from CI")
     def test_getPriceData(self):
         result = self.ms.getPriceData(constants.URLBASE,7498,'***','***')
-        assert result == ('"1";"7498";"***";"***";"135.45";"30";"94.815";"40.635";"21";' +
-            '"111.94";"78.36";"33.58";"2020-01-20 16:55:35";\n')
-        result = self.ms.getPriceData(constants.URLBASE + "random",'NOTVALID', 'NOT', 'VALID')
-        assert not result
+        data = {0: [1], 1: [7498], 2: ['***'], 3: ['***'], 4: [135.45], 5: [30],
+            6: [94.815], 7: [40.635], 8: [21], 9: [111.94], 10: [78.36],
+            11: [33.58], 12: ['2020-01-20 16:55:35']}
+        test_np = pd.DataFrame(data)
+        assert_frame_equal(result, test_np)
 
     @pytest.mark.skipif('CODECOV_TOKEN' in os.environ, reason="Can't test from CI")
     def test_getStockData(self):
         result = self.ms.getStockData(constants.URLBASE,7498,'***','***')
-        assert result == ('"7498";"***";"***";"01";"Pintor Fortuny";"5";"0";"5";' +
-            '"2020-03-06 19:24:47";\n')
-        result = self.ms.getStockData(constants.URLBASE + "random",'NOTVALID', 'NOT', 'VALID')
-        assert not result
+        data = {0: [7498], 1: ['***'], 2: ['***'], 3: [1], 4: ["Pintor Fortuny"], 5: [5],
+            6: [0], 7: [5], 8: ['2020-03-06 19:24:47']}
+        test_np = pd.DataFrame(data)
+        assert_frame_equal(result, test_np)
+
+    #TODO: One test fail (no results)
 
 
 # vim: et ts=4 sw=4
