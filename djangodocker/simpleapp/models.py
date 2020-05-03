@@ -51,7 +51,7 @@ class Manufacturer(models.Model):
 
 
 class Product(models.Model):
-    icg_id = models.IntegerField(unique=True)
+    icg_id = models.IntegerField(unique=True, blank=True, null=True)
     icg_reference = models.CharField(max_length=20)
     icg_name = models.CharField(max_length=100)
     ps_id = models.IntegerField(blank=True, null=True, default=0)
@@ -59,7 +59,7 @@ class Product(models.Model):
     manufacturer = models.ForeignKey('Manufacturer', on_delete=models.DO_NOTHING, null=True)
     short_description = models.TextField(blank=True)
     long_description = models.TextField(blank=True)
-    created_date = models.DateTimeField(default=timezone.now)
+    created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
@@ -156,7 +156,7 @@ class Combination(models.Model):
     product_id = models.ForeignKey('Product', on_delete=models.CASCADE)
     ean13 = models.CharField(max_length=15, blank=True)
     minimal_quantity = models.IntegerField(default=1)
-    created_date = models.DateTimeField(default=timezone.now)
+    created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     updated = models.BooleanField(default=True)
     discontinued = models.BooleanField(default=False) #descatalogado
@@ -206,7 +206,7 @@ class Stock(models.Model):
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE)
     icg_stock = models.IntegerField(default=0)
     ps_stock = models.IntegerField(default=0)
-    created_date = models.DateTimeField(default=timezone.now)
+    created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=False)
@@ -241,7 +241,7 @@ class Price(models.Model):
     iva = models.IntegerField(default=0)
     pvp_siva = models.FloatField(default=0)
     preu_oferta_siva = models.FloatField(default=0)
-    created_date = models.DateTimeField(default=timezone.now)
+    created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=False)
@@ -291,7 +291,7 @@ class ProductOption(models.Model):
     ps_position = models.IntegerField(default=0)
     ps_iscolor = models.BooleanField(default=False)
     product_id = models.ForeignKey('Product', on_delete=models.CASCADE)
-    created_date = models.DateTimeField(default=timezone.now)
+    created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     updated = models.BooleanField(default=True)
 
@@ -319,7 +319,7 @@ class ProductOptionValue(models.Model):
     ps_id = models.IntegerField(blank=True, null=True, default=0)
     ps_name = models.CharField(max_length=100, default='')
     po_id = models.ForeignKey('ProductOption', on_delete=models.CASCADE)
-    created_date = models.DateTimeField(default=timezone.now)
+    created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     updated = models.BooleanField(default=True)
 
@@ -343,7 +343,7 @@ class SpecificPrice(models.Model):
     dto_percent = models.IntegerField(default=0)
     dto_euros = models.FloatField(default=0)
     dto_euros_siva = models.FloatField(default=0)
-    created_date = models.DateTimeField(default=timezone.now)
+    created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)

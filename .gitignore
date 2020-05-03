@@ -8,3 +8,4 @@ media/
 migrations/
 .coverage
 *.swp
+**/constants_productive.py

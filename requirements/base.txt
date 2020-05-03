@@ -3,3 +3,4 @@ Django==2.2.12
 git+https://github.com/oriolpiera/prestapyt.git
 pandas
 psycopg2
+django_cron

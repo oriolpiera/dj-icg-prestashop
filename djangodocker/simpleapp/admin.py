@@ -18,37 +18,39 @@ class ManufacturerAdmin(admin.ModelAdmin):
 admin.site.register(Manufacturer, ManufacturerAdmin)
 
 
-class ProductAdmin(admin.ModelAdmin):
-    fields = ['icg_id', 'icg_reference', 'icg_name', 'ps_id', 'ps_name',
-        'modified_date','icg_modified_date', 'visible_web', 'manufacturer']
-    list_display = ['icg_id', 'icg_reference', 'icg_name', 'ps_id', 'ps_name',
-        'modified_date','icg_modified_date', 'visible_web']
-    search_fields = ['icg_reference', 'icg_name', 'ps_name']
-
-#admin.site.register(Product, ProductAdmin)
-
-
 class CombinationAdmin(admin.ModelAdmin):
+    actions = ["actualitzar_ICG"]
     fields = ['ps_id','icg_talla','icg_color','product_id','ean13','discontinued']
     list_display = ['ps_id','icg_talla','icg_color','product_id','ean13','discontinued']
     search_fields = ['ps_id','icg_talla','icg_color','product_id','ean13']
     list_filter = ['discontinued', 'updated']
 
+    def actualitzar_ICG(self, request, queryset):
+        queryset.first().updateFromICG()
+
 admin.site.register(Combination, CombinationAdmin)
 
 
 class PriceAdmin(admin.ModelAdmin):
+    actions = ["actualitzar_ICG"]
     fields = ['combination_id', 'ps_id','pvp_siva','iva','pvp']
     list_display = ['combination_id', 'ps_id','pvp_siva','iva','pvp']
     search_fields = ['combination_id', 'ps_id']
+
+    def actualitzar_ICG(self, request, queryset):
+        queryset.first().updateFromICG()
 
 admin.site.register(Price, PriceAdmin)
 
 
 class StockAdmin(admin.ModelAdmin):
+    actions = ["actualitzar_ICG"]
     fields = ['combination_id', 'icg_stock', 'ps_stock', 'icg_modified_date']
     list_display = ['combination_id', 'icg_stock', 'ps_stock', 'icg_modified_date']
     search_fields = ['combination_id', 'icg_stock', 'ps_stock', 'icg_modified_date']
+
+    def actualitzar_ICG(self, request, queryset):
+        queryset.first().updateFromICG()
 
 admin.site.register(Stock, StockAdmin)
 
@@ -70,9 +72,13 @@ admin.site.register(ProductOptionValue, ProductOptionValueAdmin)
 
 
 class SpecificPriceAdmin(admin.ModelAdmin):
+    actions = ["actualitzar_ICG"]
     fiels = ['combination_id', 'ps_id','dto_percent', 'icg_modified_date']
     list_display = ['combination_id', 'ps_id','dto_percent', 'icg_modified_date']
     search_fields = ['combination_id', 'ps_id']
+
+    def actualitzar_ICG(self, request, queryset):
+        queryset.first().updateFromICG()
 
 admin.site.register(SpecificPrice, SpecificPriceAdmin)
 

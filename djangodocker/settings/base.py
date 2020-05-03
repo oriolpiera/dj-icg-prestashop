@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'djangodocker.simpleapp',
+    'django_cron',
 ]
 
 MIDDLEWARE = [
@@ -71,6 +72,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'djangodocker.wsgi.application'
 
+CRON_CLASSES = [
+    'simpleapp.product_icg_cron',
+    'simpleapp.price_icg_cron',
+    'simpleapp.stock_icg_cron',
+]
 
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
@@ -81,7 +87,8 @@ DATABASES = {
     'NAME': 'djangodocker_db',
     'USER': 'root',
     'PASSWORD': 'root',
-    'HOST': 'db', # Or an IP Address that your DB is hosted on
+    #'HOST': 'db', # Or an IP Address that your DB is hosted on
+    'HOST': '127.0.0.1',
     'PORT': '3306',
   }
 }
