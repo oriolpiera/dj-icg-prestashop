@@ -37,18 +37,18 @@ class ControllerICGProducts(object):
                 str(dj_object.objects.filter(**primary_key)))
 
 
-    def saveNewProducts(self, url_base=None):
+    def saveNewProducts(self, url_base=None, data=None):
         if not url_base:
             url_base = self._url_base
         ms = mssql.MSSQL()
-        np  = ms.newProducts(url_base)
+        np  = ms.newProducts(url_base, data)
         for index,row in np.iterrows():
             icg_id = row[0]
             icg_reference = row[1]
             icg_talla = row[2]
             icg_color = row[3]
             ean13 = row[4]
-            icg_name = row[6].encode('utf-8')
+            icg_name = row[6]
             iva = row[8]
             icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
             visible_web = True if row[12] == 'T' else False
@@ -67,11 +67,11 @@ class ControllerICGProducts(object):
                 {'discontinued': discontinued, 'ean13': ean13})
 
 
-    def saveNewPrices(self, url_base=None):
+    def saveNewPrices(self, url_base=None, data=None):
         if not url_base:
             url_base = self._url_base
         ms = mssql.MSSQL()
-        np  = ms.newPrices(url_base)
+        np  = ms.newPrices(url_base, data)
         for index,row in np.iterrows():
             icg_id = row[1]
             icg_talla = row[2].strip('\"')
@@ -93,18 +93,17 @@ class ControllerICGProducts(object):
                     {'dto_percent': dto_percent, 'icg_modified_date': icg_modified_date})
 
 
-    def saveNewStocks(self, url_base=None):
+    def saveNewStocks(self, url_base=None, data=None):
         if not url_base:
             url_base = self._url_base
         ms = mssql.MSSQL()
-        np = ms.newStocks(url_base)
+        np = ms.newStocks(url_base, data)
         for index,row in np.iterrows():
             icg_id = row[0]
             icg_talla = row[1].strip('\"')
             icg_color = row[2].strip('\"')
             icg_stock = row[7]
             icg_modified_date = make_aware(datetime.strptime(row[8], '%Y-%m-%d %H:%M:%S'))
-
             prod = self.get_create_or_update('Product', {'icg_id': icg_id},{})
             comb = self.get_create_or_update('Combination', {'product_id': prod,
                 'icg_color': icg_color, 'icg_talla': icg_talla},{})

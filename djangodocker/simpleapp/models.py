@@ -28,6 +28,8 @@ class Manufacturer(models.Model):
     def saved_in_prestashop(self):
         return ps_id
 
+    def __str__(self):
+        return (str(self.pk) + ": " + str(self.icg_id ) + " > " + self.icg_name + " > " + str(self.ps_id) + " > " + self.ps_name)
 
     def compareICG(self, man):
         result = {}
@@ -84,14 +86,16 @@ class Product(models.Model):
 
     def compareICG(self, product):
         result = {}
-        if self.icg_name != product.icg_name:
+        if product.icg_name and (self.icg_name != product.icg_name):
             result['icg_name'] = product.icg_name
-        if self.icg_reference != product.icg_reference:
+        if product.icg_reference and (self.icg_reference != product.icg_reference):
             result['icg_reference'] = product.icg_reference
         if product.manufacturer and  (self.manufacturer != product.manufacturer):
-            result['manufacturer'] = product.manufacturer.icg_id
+            result['manufacturer'] = product.manufacturer
         if self.visible_web != product.visible_web:
             result['visible_web'] = "0"
+        if product.icg_modified_date and (self.icg_modified_date != product.icg_modified_date):
+            result['icg_modified_date'] = product.icg_modified_date
         return result
 
     def compare(self, product):
@@ -107,15 +111,16 @@ class Product(models.Model):
                 result['visible_web'] = "0"
         elif isinstance(product, dict):
             modified = False
-            if str(self.icg_reference) != str(product['product']['reference']):
+            if self.icg_reference and (str(self.icg_reference) != str(product['product']['reference'])):
                 product['product']['reference'] = self.icg_reference
                 modified = True
-            if str(self.manufacturer.ps_id) != str(product['product']['id_manufacturer']):
+            if self.manufacturer and (str(self.manufacturer.ps_id) != str(product['product']['id_manufacturer'])):
                 product['product']['id_manufacturer'] = str(self.manufacturer.ps_id)
                 modified = True
-            if self.icg_name != product['product']['name']['language']['value']:
+            if self.icg_name and (self.icg_name != mytools.get_ps_language(
+                product['product']['name']['language'])):
                 #TODO: more than one language
-                product['product']['name']['language']['value'] = self.icg_name
+                mytools.update_ps_language(product['product']['name']['language'], self.icg_name)
                 modified = True
             if self.visible_web != True if product['product']['active'] == 1 else False:
                 product['product']['active'] = 1 if self.visible_web else 0
@@ -138,14 +143,17 @@ class Product(models.Model):
 
     def updateFromICG(self):
         ms = mssql.MSSQL()
-        result = ms.getProductData(constants.URLBASE, self.icg_reference)
+        result = ms.getProductData(constants.URLBASE, self.icg_reference, self.icg_id)
+        if isinstance(result, bool):
+            return False
+        updated = dict()
         for index,row in result.iterrows():
-            self.icg_id = row[0]
-            self.icg_reference = row[1]
-            self.icg_name = row[6].encode('utf-8')
-            icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
-            self.updated = True
-            self.save()
+            updated['icg_id'] = row[0]
+            updated['icg_reference'] = row[1]
+            updated['icg_name'] = row[6]
+            updated['icg_modified_date'] = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
+            updated['updated'] = True
+            Product.objects.filter(icg_id=row[0]).update(**updated)
         return True
 
 
@@ -193,8 +201,10 @@ class Combination(models.Model):
 
     def updateFromICG(self):
         ms = mssql.MSSQL()
-        result = ms.getCombinationData(constants.URLBASE, self.icg_reference,
+        result = ms.getCombinationData(constants.URLBASE, self.product_id.icg_reference,
             self.icg_talla, self.icg_color)
+        if isinstance(result, bool):
+            return False
         for index,row in result.iterrows():
             self.ean13 = row[4]
             self.discontinued = True if row[15] == 'T' else False
@@ -284,7 +294,7 @@ class Price(models.Model):
 
 class ProductOption(models.Model):
     ps_id = models.IntegerField(blank=True, null=True, default=0)
-    ps_name = models.CharField(max_length=100, default='')
+    ps_name = models.CharField(max_length=100, default='', unique=True)
     ps_icg_type = models.CharField(max_length=10, default='') #talla o color
     ps_public_name = models.CharField(max_length=100, default='')
     ps_group_type = models.CharField(max_length=15, default='')

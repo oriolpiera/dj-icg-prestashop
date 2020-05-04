@@ -4,14 +4,14 @@ from . import models, mssql
 from django.core.exceptions import ObjectDoesNotExist,MultipleObjectsReturned
 import datetime
 import logging
-from . import controller
+from . import controller, constants, mytools
 
 class ControllerPrestashop(object):
     def __init__(self, url_base=''):
         self._url_base = url_base
         self.logger = logging.getLogger(__name__)
         self._api =  prestapyt.PrestaShopWebServiceDict(
-            'http://prestashop/api', 'GENERATE_COMPLEX_KEY_LIKE_THIS!!', debug=True, verbose=True)
+            constants.PS_URL, constants.PS_KEY, debug=True, verbose=True)
 
     def update_language(self, language, name):
         if isinstance(language, list):
@@ -21,9 +21,37 @@ class ControllerPrestashop(object):
             language['value'] = name
         return language
 
+
+    def tryToUpdateProduct_fromPS(self, product):
+        if product.icg_reference:
+            response = self._api.get('products', None,
+                {'filter[reference]': product.icg_reference, 'limit': '1'})
+            if response['products']:
+                #Product exist
+                product.ps_id = int(response['products']['product']['attrs']['id'])
+                product.save()
+                return True
+
+    def tryToUpdateProductOption_fromPS(self, po):
+        if po.ps_name:
+            response = self._api.get('product_options', None,
+                {'filter[reference]': product.icg_reference, 'limit': '1'})
+            if response['products']:
+                #Product exist
+                product.ps_id = int(response['products']['product']['attrs']['id'])
+                product.save()
+                return True
+
     def get_or_create_manufacturer(self, manufacturer):
         if manufacturer.ps_id:
-            response = self._api.get('manufacturers', resource_id=manufacturer.ps_id)
+            try:
+                response = self._api.get('manufacturers', resource_id=manufacturer.ps_id)
+            except prestapyt.prestapyt.PrestaShopWebServiceError:
+                #No exist in PS anymore. Recreate
+                manufacturer.ps_id = 0
+                manufacturer.save()
+                return self.get_or_create_manufacturer(manufacturer)
+
             updated, new_man_ps = manufacturer.compare(response)
             if updated:
                 new_man_ps['manufacturer'].pop('link_rewrite', None)
@@ -43,7 +71,14 @@ class ControllerPrestashop(object):
 
     def get_or_create_product(self, product):
         if product.ps_id:
-            response = self._api.get('products', resource_id=product.ps_id)
+            try:
+                response = self._api.get('products', resource_id=product.ps_id)
+            except prestapyt.prestapyt.PrestaShopWebServiceError:
+                #No exist in PS anymore. Recreate
+                product.ps_id = 0
+                product.save()
+                return self.get_or_create_product(product)
+
             updated, new_prod_ps = product.compare(response)
             if updated:
                 new_prod_ps['product'].pop('manufacturer_name', None)
@@ -54,10 +89,31 @@ class ControllerPrestashop(object):
         elif not product.visible_web:
             response = {}
         else:
+            if product.icg_reference:
+                response = self._api.get('products', None,
+                    {'filter[reference]': product.icg_reference, 'limit': '1'})
+                if response['products']:
+                    #Product exist
+                    product.ps_id = int(response['products']['product']['attrs']['id'])
+                    product.save()
+                    return self.get_or_create_product(product)
             p_data = self._api.get('products', options={'schema': 'blank'})
-            p_data['product']['id_manufacturer'] = product.manufacturer.ps_id
+            if product.manufacturer:
+                p_data['product']['id_manufacturer'] = product.manufacturer.ps_id
+            else:
+                p_data['product']['id_manufacturer'] = 0
             p_data['product']['reference'] = product.icg_reference
             p_data['product']['price'] = 0
+            p_data['product']['id_category_default'] = constants.ICG_CATEGORY
+            p_data['product']['position_in_category'] = 0
+            p_data['product']['id_tax_rules_group'] = 1
+            p_data['product']['minimal_quantity'] = 1
+            p_data['product']['state'] = 1
+            #TODO: revisar active
+            p_data['product']['active'] = 0
+            p_data['product']['id_shop_default'] = 1
+            p_data['product']['avaiable_for_order'] = 1
+            p_data['product']['show_price'] = 1
             p_data['product']['name']['language'] = self.update_language(
                 p_data['product']['name']['language'], product.icg_name)
             p_data['product']['link_rewrite']['language'] = self.update_language(
@@ -76,11 +132,22 @@ class ControllerPrestashop(object):
         product.save()
         return response
 
-    def get_or_create_combination(self, comb):
+    def get_or_create_combination(self, comb, price=0):
         response = None
         if comb.ps_id:
-            response = self._api.get('combinations', resource_id=comb.ps_id)
+            try:
+                response = self._api.get('combinations', resource_id=comb.ps_id)
+            except prestapyt.prestapyt.PrestaShopWebServiceError as e:
+                #No exist in PS anymore. Recreate
+                if comb.discontinued:
+                    raise prestapyt.prestapyt.PrestaShopWebServiceError(e)
+                comb.ps_id = 0
+                comb.save()
+                return self.get_or_create_combination(comb)
             updated, new_comb_ps = comb.compare(response)
+            if price and (price != response['combination']['price']):
+                new_comb_ps['combination']['price'] = price
+                updated = True
             if updated:
                 if 'discontinued' in new_comb_ps:
                     response = self._api.delete('combinations', resource_ids=comb.ps_id)
@@ -92,18 +159,27 @@ class ControllerPrestashop(object):
                     response_edit = self._api.edit('combinations', new_comb_ps)
                     self.logger.info("Combinacio modificada: %s", str(new_comb_ps))
         else:
+            # Create product option values
+            po_talla = self.get_or_create_product_options_django(comb.product_id, 'talla')
+            po_talla_ps = self.get_or_create_product_options(po_talla)
+            po_color = self.get_or_create_product_options_django(comb.product_id, 'color')
+            po_color_ps = self.get_or_create_product_options(po_color)
+            talla = self.get_or_create_product_option_value_django(po_talla, comb.icg_talla)
+            ps_talla = self.get_or_create_product_option_value(talla)
+            color = self.get_or_create_product_option_value_django(po_color, comb.icg_color)
+            ps_color = self.get_or_create_product_option_value(color)
+
             p_data = self._api.get('combinations', options={'schema': 'blank'})
             p_data['combination']['id_product'] = comb.product_id.ps_id
             p_data['combination']['ean13'] = comb.ean13
-            p_data['combination']['price'] = 0
+            p_data['combination']['price'] = price
             p_data['combination']['minimal_quantity'] = comb.minimal_quantity
+            p_data['combination']['associations']['product_option_values']['product_option_value'] = []
+            p_data['combination']['associations']['product_option_values']['product_option_value'].append({'id': ps_talla['product_option_value']['id']})
+            p_data['combination']['associations']['product_option_values']['product_option_value'].append({'id': ps_color['product_option_value']['id']})
+            print(p_data)
             response_add = self._api.add('combinations', p_data)
             comb.ps_id = int(response_add['prestashop']['combination']['id'])
-            # Create product option values
-            po_talla = self.get_or_create_product_options_django(comb.product_id, 'talla')
-            po_color = self.get_or_create_product_options_django(comb.product_id, 'color')
-            talla = self.get_or_create_product_option_value_django(po_talla, comb.icg_talla)
-            color = self.get_or_create_product_option_value_django(po_color, comb.icg_color)
 
         comb.updated = False
         comb.save()
@@ -111,6 +187,10 @@ class ControllerPrestashop(object):
             response = self._api.get('combinations', resource_id=comb.ps_id)
 
         return response
+
+    def get_or_create_price(self, price):
+        print("Oriol estic aqui")
+        return self.get_or_create_combination(price.combination_id, price.pvp_siva)
 
     def get_or_create_product_options_django(self, product, tipus):
         c = controller.ControllerICGProducts()
@@ -123,8 +203,26 @@ class ControllerPrestashop(object):
         return c.get_create_or_update('ProductOptionValue', {'po_id' : po, 'icg_name': icg_name}, {})
 
     def get_or_create_product_options(self, po):
-        if not po.ps_id:
-            po.ps_name = str(po.product_id.ps_id) + "_" + po.ps_icg_type
+        if po.ps_id:
+            try:
+                response = self._api.get('product_options', resource_id=po.ps_id)
+            except prestapyt.prestapyt.PrestaShopWebServiceError:
+                #No exist in PS anymore. Recreate
+                po.ps_id = 0
+                po.save()
+                return self.get_or_create_product_options(po)
+
+        else:
+            ps_name = str(po.product_id.ps_id) + "_" + po.ps_icg_type
+            response = self._api.get('product_options', None,
+                {'filter[name]': ps_name, 'limit': '1'})
+            if response['product_options']:
+                #Product options really exist
+                po.ps_id = int(response['product_options']['product_option']['attrs']['id'])
+                po.save()
+                return self.get_or_create_product_options(po)
+
+            po.ps_name = ps_name
             po.ps_public_name = str(po.product_id.ps_id) + "_" + po.ps_icg_type
             po_data = self._api.get('product_options', options={'schema': 'blank'})
             po_data['product_option']['group_type'] = 'select'
@@ -141,15 +239,41 @@ class ControllerPrestashop(object):
 
     def get_or_create_product_option_value(self, pov):
         if pov.ps_id:
-            return self._api.get('product_option_values', resource_id=pov.ps_id)
- 
-        pov_data = self._api.get('product_option_values', options={'schema': 'blank'})
-        pov_data['product_option_value']['id_attribute_group'] = pov.po_id.ps_id
-        pov_data['product_option_value']['name']['language'] = self.update_language(
-            pov_data['product_option_value']['name']['language'], pov.icg_name)
+            try:
+                response = self._api.get('product_option_values', resource_id=pov.ps_id)
+            except prestapyt.prestapyt.PrestaShopWebServiceError:
+                #No exist in PS anymore. Recreate
+                pov.ps_id = 0
+                pov.save()
+                return self.get_or_create_product_option_value(pov)
+        else:
+            response = self._api.get('product_option_values', None,
+                {'filter[id_attribute_group]': pov.po_id.ps_id})
 
-        response = self._api.add('product_option_values', pov_data)
-        pov.ps_id = int(response['prestashop']['product_option_value']['id'])
+            if response['product_option_values']:
+                data = response['product_option_values']['product_option_value']
+                if not isinstance(data, list):
+                    data = [data]
+
+                for p in data:
+                    pov_ps_id = int(p['attrs']['id'])
+                    pov_data = self._api.get('product_option_values', pov_ps_id)
+                    temp_name = mytools.get_ps_language(
+                        pov_data['product_option_value']['name']['language'])
+                    if temp_name == pov.icg_name:
+                        pov.ps_id = int(pov_data['product_option_value']['id'])
+                        pov.save()
+                        return self.get_or_create_product_option_value(pov)
+
+            #Ok, let's create it
+            pov_data = self._api.get('product_option_values', options={'schema': 'blank'})
+            pov_data['product_option_value']['id_attribute_group'] = pov.po_id.ps_id
+            pov_data['product_option_value']['name']['language'] = self.update_language(
+                pov_data['product_option_value']['name']['language'], pov.icg_name)
+
+            response = self._api.add('product_option_values', pov_data)
+            pov.ps_id = int(response['prestashop']['product_option_value']['id'])
+
         pov.updated = False
         pov.save()
         return self._api.get('product_option_values', pov.ps_id)
@@ -157,7 +281,16 @@ class ControllerPrestashop(object):
     def get_or_create_specific_price(self, price):
         response = None
         if price.ps_id:
-            response = self._api.get('specific_prices', resource_id=price.ps_id)
+            try:
+                response = self._api.get('specific_prices', resource_id=price.ps_id)
+            except prestapyt.prestapyt.PrestaShopWebServiceError as e:
+                #No exist in PS anymore. Recreate
+                if price.dto_percent == 0:
+                    raise prestapyt.prestapyt.PrestaShopWebServiceError(e)
+                price.ps_id = 0
+                price.save()
+                return self.get_or_create_specific_price(price)
+
             updated, new_price_ps = price.comparePS(response)
             if updated:
                 if float(new_price_ps['specific_price']['reduction']) == 0:
@@ -214,17 +347,17 @@ class ControllerPrestashop(object):
             p = self.get_or_create_product_options(po)
             ps_po.append(p['product_option']['id'])
 
-        ps_comb = []
-        updated_comb = models.Combination.objects.filter(updated = True)
-        for comb in updated_comb:
-            c = self.get_or_create_combination(comb)
-            ps_comb.append(c['combination']['id'])
-
         ps_pov = []
         updated_product_options_values = models.ProductOptionValue.objects.filter(updated = True)
         for pov in updated_product_options_values:
             p = self.get_or_create_product_option_value(pov)
             ps_pov.append(p['product_option_value']['id'])
+
+        ps_comb = []
+        updated_comb = models.Combination.objects.filter(updated = True)
+        for comb in updated_comb:
+            c = self.get_or_create_combination(comb)
+            ps_comb.append(c['combination']['id'])
 
         ps_sp = []
         updated_specific_price = models.SpecificPrice.objects.filter(updated = True)

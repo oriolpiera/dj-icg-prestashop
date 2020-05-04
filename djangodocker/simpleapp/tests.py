@@ -68,11 +68,13 @@ class UserFactory(factory.django.DjangoModelFactory):
 class ProductOptionFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = 'simpleapp.ProductOption'
-        django_get_or_create = ('ps_icg_type', 'ps_id')
+        django_get_or_create = ('ps_icg_type', 'ps_id', 'ps_name')
 
-    ps_id = 0
+    ps_id = factory.Sequence(lambda n: n)
     ps_icg_type = 'talla'
     product_id = factory.SubFactory(ProductFactory)
+    ps_name = '0_talla'
+
 
 class ProductOptionValueFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -131,16 +133,19 @@ class TestSimpleApp:
 
     def test__updateFromICG_product(self):
         p = ProductFactory()
+        p.icg_id = 7500
         p.icg_reference = '0930095'
+        p.save()
         result = p.updateFromICG()
         assert result
 
     def test__updateFromICG_combination(self):
         c = CombinationFactory()
         c.updated = False
-        c.icg_reference = '0930095'
+        c.product_id.icg_reference = '0930095'
         c.icg_talla = '12'
         c.icg_color = 'CAR 12 ML'
+        c.save()
         result = c.updateFromICG()
         assert result
         assert c.updated
@@ -163,7 +168,6 @@ class TestSimpleApp:
         c.icg_color = 'CAR 12 ML'
         p = PriceFactory(combination_id = c)
         p.updated = False
-
         p.save()
         result = p.updateFromICG()
         assert result
@@ -173,14 +177,32 @@ class TestSimpleApp:
 
 @pytest.mark.django_db
 class TestControllerPrestashop:
-
     @classmethod
     def setup_class(self):
-
         self._api =  prestapyt.PrestaShopWebServiceDict(
             'http://prestashop/api', 'GENERATE_COMPLEX_KEY_LIKE_THIS!!', debug=True, verbose=True)
         self.p = prestashop.ControllerPrestashop()
+        self.helper_clean_prestashop(self)
 
+    def helper_clean_prestashop(self):
+        self.helper_cleanPS_oneResource(self, 'product')
+        self.helper_cleanPS_oneResource(self, 'manufacturer')
+        self.helper_cleanPS_oneResource(self, 'combination')
+        self.helper_cleanPS_oneResource(self, 'product_option')
+        self.helper_cleanPS_oneResource(self, 'product_option_value')
+        self.helper_cleanPS_oneResource(self, 'specific_price')
+
+    def helper_cleanPS_oneResource(self, resource_name):
+        resource_name_plural = resource_name + 's'
+        resource_list = []
+        response = self._api.get(resource_name_plural, None)
+        if response[resource_name_plural]:
+            if isinstance(response[resource_name_plural][resource_name], list):
+                for p in  response[resource_name_plural][resource_name]:
+                    resource_list.append(int(p['attrs']['id']))
+            else:
+                resource_list = [response[resource_name_plural][resource_name]['attrs']['id']]
+            self._api.delete(resource_name_plural, resource_ids=resource_list)
 
     def test__get_or_create_manufacturer__ok(self):
         # Create one
@@ -264,8 +286,9 @@ class TestControllerPrestashop:
         comb_ps2 = self.p.get_or_create_combination(comb)
         assert comb_ps1['combination']['id'] == comb_ps2['combination']['id']
 
+        p2 = ProductFactory(icg_id=7499, ps_id=9)
         # Create other
-        comb2 = CombinationFactory(icg_talla="24", icg_color="***", product_id__icg_id=7499)
+        comb2 = CombinationFactory(icg_talla="24", icg_color="***", product_id = p2)
         comb_ps3 = self.p.get_or_create_combination(comb2)
         assert comb_ps1['combination']['id'] != comb_ps3['combination']['id']
         po_list = models.ProductOption.objects.all()
@@ -280,6 +303,7 @@ class TestControllerPrestashop:
 
         #Exeption when try to eliminate not existing combination
         comb.ps_id = comb_ps_id
+        comb.save()
         with pytest.raises(prestapyt.prestapyt.PrestaShopWebServiceError):
             self.p.get_or_create_combination(comb)
 
@@ -289,10 +313,11 @@ class TestControllerPrestashop:
         assert comb_ps5['combination']['ean13'] != comb_ps3['combination']['ean13']
         assert comb_ps5['combination']['id'] == comb_ps3['combination']['id']
 
-
+    #@pytest.mark.skipif(True, reason='Subfactory problems')
     def test__get_or_create_product_options__ok(self):
         # Create one
-        po = ProductOptionFactory()
+        p1 = ProductFactory()
+        po = ProductOptionFactory(product_id = p1)
         po_ps1 = self.p.get_or_create_product_options(po)
         assert po.ps_id
         assert po_ps1['product_option']['id']
@@ -302,14 +327,19 @@ class TestControllerPrestashop:
         assert po_ps1['product_option']['id'] == po_ps2['product_option']['id']
 
         # Create other
-        po2 = ProductOptionFactory()
+        p2 = ProductFactory()
+        p2.ps_id = 9999
+        p2.save()
+        po2 = ProductOptionFactory(ps_id = 0, ps_name='9999_talla', product_id = p2)
         po_ps3 = self.p.get_or_create_product_options(po2)
         assert po_ps3['product_option']['id'] != po_ps2['product_option']['id']
 
 
     def test__get_or_create_product_option_value__ok(self):
         # Create one
-        pov = ProductOptionValueFactory()
+        po = ProductOptionFactory()
+        po_ps1 = self.p.get_or_create_product_options(po)
+        pov = ProductOptionValueFactory(po_id = po)
         pov_ps1 = self.p.get_or_create_product_option_value(pov)
         assert pov.ps_id
         assert pov_ps1['product_option_value']['id']
@@ -322,6 +352,12 @@ class TestControllerPrestashop:
         pov2 = ProductOptionValueFactory()
         pov_ps3 = self.p.get_or_create_product_option_value(pov2)
         assert pov_ps3['product_option_value']['id'] != pov_ps2['product_option_value']['id']
+
+        # No create other when existing in PS but we don't have no ps_id
+        pov2.ps_id = 0
+        pov2.save()
+        pov_ps4 = self.p.get_or_create_product_option_value(pov2)
+        assert pov_ps3['product_option_value']['id'] == pov_ps4['product_option_value']['id']
 
     def test__get_or_create_specific_price__ok(self):
         # Create one
@@ -337,7 +373,8 @@ class TestControllerPrestashop:
         assert sp_ps1['specific_price']['id'] == sp_ps2['specific_price']['id']
 
         # Create other
-        comb2 = CombinationFactory()
+        p2 = ProductFactory(icg_id=7499, ps_id=9)
+        comb2 = CombinationFactory(product_id = p2)
         sp2 = SpecificPriceFactory(combination_id = comb2)
         comb_ps3 = self.p.get_or_create_combination(comb2)
         sp_ps3 = self.p.get_or_create_specific_price(sp2)
@@ -374,6 +411,13 @@ class TestControllerPrestashop:
         assert len(models.ProductOption.objects.all()) is 2
         assert len(models.ProductOption.objects.filter(updated = True)) is 2
 
+
+    def test__filterProductsReference__ok(self):
+        prod = ProductFactory()
+        prod_ps = self.p.get_or_create_product(prod)
+        response = self._api.get('products', None, {'filter[reference]': prod.icg_reference, 'limit': '1'})
+        assert prod_ps['product']['id']  == response['products']['product']['attrs']['id']
+
     def test__carregaNous__ok(self):
         #comb = CombinationFactory.create_batch(2)
         sp = SpecificPriceFactory.create_batch(2)
@@ -403,7 +447,7 @@ class TestControllerPrestashop:
         assert len(created['ps_man']) is 2
         assert len(created['ps_prod']) is 2
         assert len(created['ps_po']) is 4
-        assert len(created['ps_pov']) is 4
+        assert len(created['ps_pov']) is 0
         assert len(created['ps_comb']) is 2
         assert len(created['ps_sp']) is 2
 
@@ -549,6 +593,14 @@ class TestControllerICGProducts:
         prod_list = models.Product.objects.all()
         assert len(prod_list) is 1
         assert prod1.pk is prod2.pk
+
+        # Get one without extra params
+        prod2 = self.c.get_create_or_update('Product', {'icg_id': 7500}, {})
+        prod_list = models.Product.objects.all()
+        assert len(prod_list) is 1
+        assert prod1.pk is prod2.pk
+        assert prod2.icg_name == 'Caja Témpera ArtCreation'
+        assert prod2.icg_reference == '0930095'
 
         # Update one
         assert prod1.updated
