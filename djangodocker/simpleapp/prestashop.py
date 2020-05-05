@@ -7,8 +7,7 @@ import logging
 from . import controller, constants, mytools
 
 class ControllerPrestashop(object):
-    def __init__(self, url_base=''):
-        self._url_base = url_base
+    def __init__(self):
         self.logger = logging.getLogger(__name__)
         self._api =  prestapyt.PrestaShopWebServiceDict(
             constants.PS_URL, constants.PS_KEY, debug=True, verbose=True)

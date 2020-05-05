@@ -27,7 +27,7 @@ class ProductView(TemplateView):
         token = data_form.get('token')
         tipus = data_form.get('tipus')
         if token != MSSQL_TOKEN:
-            return render(request, self.template_name, {'args':'401'})
+            return HttpResponse('Unauthorized', status=401)
 
         c = controller.ControllerICGProducts()
         if tipus == "product":
@@ -37,8 +37,9 @@ class ProductView(TemplateView):
         elif tipus == "stock":
             c.saveNewStocks(None, data)
 
-        cp = prestashop.ControllerPrestashop()
-        cp.carregaNous()
+        # My run on cron async
+        #cp = prestashop.ControllerPrestashop()
+        #cp.carregaNous()
 
-        return render(request, self.template_name)
+        return HttpResponse('Created', status=201)
 
