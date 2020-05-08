@@ -176,7 +176,6 @@ class ControllerPrestashop(object):
             p_data['combination']['associations']['product_option_values']['product_option_value'] = []
             p_data['combination']['associations']['product_option_values']['product_option_value'].append({'id': ps_talla['product_option_value']['id']})
             p_data['combination']['associations']['product_option_values']['product_option_value'].append({'id': ps_color['product_option_value']['id']})
-            print(p_data)
             response_add = self._api.add('combinations', p_data)
             comb.ps_id = int(response_add['prestashop']['combination']['id'])
 
@@ -188,8 +187,11 @@ class ControllerPrestashop(object):
         return response
 
     def get_or_create_price(self, price):
-        print("Oriol estic aqui")
-        return self.get_or_create_combination(price.combination_id, price.pvp_siva)
+        c = self.get_or_create_combination(price.combination_id, price.pvp_siva)
+        price.ps_id = int(c['combination']['id'])
+        price.updated = False
+        price.save()
+        return c
 
     def get_or_create_product_options_django(self, product, tipus):
         c = controller.ControllerICGProducts()
@@ -327,6 +329,42 @@ class ControllerPrestashop(object):
             response = self._api.get('specific_prices', resource_id=price.ps_id)
         return response
 
+    def get_or_create_stock(self, stock):
+        if stock.ps_id:
+            try:
+                response = self._api.get('stock_availables', resource_id=stock.ps_id)
+                response['stock_available']['quantity'] = stock.icg_stock
+                response_edit = self._api.edit('stock_availables', response)
+                stock.ps_stock = int(response_edit['prestashop']['stock_available']['quantity'])
+            except prestapyt.prestapyt.PrestaShopWebServiceError:
+                #No exist in PS anymore. Recreate
+                stock.ps_id = 0
+                stock.save()
+                return self.get_or_create_stock(stock)
+
+        else:
+            response = self._api.get('stock_availables', None,
+                {'filter[id_product_attribute]': stock.combination_id.ps_id, 'limit': '1'})
+            if response['stock_availables']:
+                #Product options really exist
+                stock.ps_id = int(response['stock_availables']['stock_available']['attrs']['id'])
+                stock.save()
+                return self.get_or_create_stock(stock)
+
+            stock_data = self._api.get('stock_availables', options={'schema': 'blank'})
+            stock_data['stock_available']['id_product'] = stock.combination_id.product_id.ps_id
+            stock_data['stock_available']['id_product_attribute'] = stock.combination_id.ps_id
+            stock_data['stock_available']['id_shop'] = 1
+            stock_data['stock_available']['quantity'] = stock.icg_stock
+
+            response = self._api.add('stock_availables', stock_data)
+            stock.ps_id = int(response['prestashop']['stock_available']['id'])
+            stock.ps_stock = int(response['prestashop']['stock_available']['quantity'])
+
+        stock.updated = False
+        stock.save()
+        return self._api.get('stock_availables', resource_id=stock.ps_id)
+
     def carregaNous(self):
         ps_man = []
         updated_manufacturers = models.Manufacturer.objects.filter(updated = True)
@@ -358,13 +396,21 @@ class ControllerPrestashop(object):
             c = self.get_or_create_combination(comb)
             ps_comb.append(c['combination']['id'])
 
+        ps_price = []
+        updated_price = models.Price.objects.filter(updated = True)
+        for price in updated_price:
+            c = self.get_or_create_price(price)
+            ps_price.append(c['combination']['id'])
+
         ps_sp = []
         updated_specific_price = models.SpecificPrice.objects.filter(updated = True)
         for sp in updated_specific_price:
             s = self.get_or_create_specific_price(sp)
             ps_sp.append(s['specific_price']['id'])
 
-        return {'ps_man': ps_man, 'ps_prod': ps_prod, 'ps_po': ps_po,
-            'ps_pov': ps_pov, 'ps_comb': ps_comb, 'ps_sp': ps_sp}
+        updated = (ps_sp or ps_price or ps_comb or ps_pov or ps_po or ps_prod or ps_man)
+        return updated, {'ps_manufacturers': ps_man, 'ps_products': ps_prod, 'ps_productoptions': ps_po,
+            'ps_productoptionvalues': ps_pov, 'ps_combinations': ps_comb,
+            'ps_specifiprices': ps_sp, 'ps_combinations_prices': ps_price}
 
 # vim: et ts=4 sw=4

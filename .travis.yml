@@ -16,7 +16,7 @@ before_script:
 - docker-compose up -d
 
 script:
-- docker-compose run $ci_env -e DJANGO_SETTINGS_MODULE=djangodocker.settings.testing -e MSSQL_TOKEN=$MSSQL_TOKEN -e URLBASE=$URLBASE --no-deps --rm app bash -c "./scripts/wait-for-prestashop.sh && python manage.py makemigrations; python manage.py migrate; coverage run -m pytest; bash <(curl -s https://codecov.io/bash);"
+- docker-compose run $ci_env -e DJANGO_SETTINGS_MODULE=djangodocker.settings.testing -e MSSQL_TOKEN=$MSSQL_TOKEN -e URLBASE=$URLBASE -e PS_URL='http://prestashop/api' -e PS_KEY='GENERATE_COMPLEX_KEY_LIKE_THIS!!' -e PS_DEBUG_MODE=False --no-deps --rm app bash -c "./scripts/wait-for-prestashop.sh && python manage.py makemigrations; python manage.py migrate; coverage run -m pytest; bash <(curl -s https://codecov.io/bash);"
 
 deploy:
   - provider: script

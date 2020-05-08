@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand, CommandError
 from djangodocker.simpleapp.prestashop import ControllerPrestashop
 from djangodocker.simpleapp.controller import ControllerICGProducts
 import logging
+from datetime import datetime
 
 class Command(BaseCommand):
     help = 'Update all objects with "updated" flag to Prestashop'
@@ -9,8 +10,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         logger = logging.getLogger('command.updatetoprestashop')
         c = ControllerICGProducts()
-        result = c.updateDataFromICG()
-        logger.info('Objects updated from ICG %s' % str(result))
+        updated, result = c.updateDataFromICG()
+        if updated:
+           logger.info("[" + str(datetime.now()) + "] Objects updated from ICG " + str(result))
         p = ControllerPrestashop()
-        result = p.carregaNous()
-        logger.info('Objects updated to PS %s' % str(result))
+        updated, result = p.carregaNous()
+        if updated:
+           logger.info("[" + str(datetime.now()) + "] Objects updated to PS " +  str(result))

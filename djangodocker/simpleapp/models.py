@@ -213,6 +213,7 @@ class Combination(models.Model):
         return True
 
 class Stock(models.Model):
+    ps_id = models.IntegerField(blank=True, null=True) #stock_availables
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE)
     icg_stock = models.IntegerField(default=0)
     ps_stock = models.IntegerField(default=0)
@@ -236,6 +237,8 @@ class Stock(models.Model):
         ms = mssql.MSSQL()
         result = ms.getStockData(constants.URLBASE, self.combination_id.product_id.icg_id,
             self.combination_id.icg_talla, self.combination_id.icg_color)
+        if isinstance(result, bool):
+            return False
         for index,row in result.iterrows():
             self.icg_stock = row[7]
             self.icg_modified_date = make_aware(datetime.strptime(row[8], '%Y-%m-%d %H:%M:%S'))
@@ -254,7 +257,7 @@ class Price(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
-    updated = models.BooleanField(default=False)
+    updated = models.BooleanField(default=True)
     fields_updated = models.CharField(max_length=200, default="{}")
 
     class Meta:
@@ -281,6 +284,8 @@ class Price(models.Model):
         ms = mssql.MSSQL()
         result = ms.getPriceData(constants.URLBASE, self.combination_id.product_id.icg_id,
             self.combination_id.icg_talla, self.combination_id.icg_color)
+        if isinstance(result, bool):
+            return False
         for index,row in result.iterrows():
             self.iva = row[8]
             self.pvp_siva = row[9]
@@ -385,6 +390,8 @@ class SpecificPrice(models.Model):
         ms = mssql.MSSQL()
         result = ms.getPriceData(constants.URLBASE, self.combination_id.product_id.icg_id,
             self.combination_id.icg_talla, self.combination_id.icg_color)
+        if isinstance(result, bool):
+            return False
         for index,row in result.iterrows():
             self.dto_percent = row[5]
             self.dto_euros = row[7]

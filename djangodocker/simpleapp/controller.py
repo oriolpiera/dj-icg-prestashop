@@ -115,5 +115,15 @@ class ControllerICGProducts(object):
         updated_products = models.Product.objects.filter(icg_reference = '')
         for prod in updated_products:
             prod.updateFromICG()
+            ps_prod.append(prod.icg_reference)
+
+        ps_comb = []
+        updated_comb = models.Combination.objects.filter(updated = True, ean13='')
+        for comb in updated_comb:
+            comb.updateFromICG()
+            ps_comb.append(comb.product_id.icg_reference)
+
+        updated = updated_products or updated_comb
+        return updated, {'ps_prod': ps_prod, 'ps_comb': ps_comb}
 
 # vim: et ts=4 sw=4

@@ -52,9 +52,9 @@ class StockFactory(factory.django.DjangoModelFactory):
 class PriceFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = 'simpleapp.Price'
-        django_get_or_create = ('pvp', 'combination_id')
+        django_get_or_create = ('pvp_siva', 'combination_id')
 
-    pvp = 0
+    pvp_siva = 0
     combination_id = factory.SubFactory(CombinationFactory)
 
 class UserFactory(factory.django.DjangoModelFactory):
@@ -286,8 +286,8 @@ class TestControllerPrestashop:
         comb_ps2 = self.p.get_or_create_combination(comb)
         assert comb_ps1['combination']['id'] == comb_ps2['combination']['id']
 
-        p2 = ProductFactory(icg_id=7499, ps_id=9)
         # Create other
+        p2 = ProductFactory(icg_id=7499, ps_id=9)
         comb2 = CombinationFactory(icg_talla="24", icg_color="***", product_id = p2)
         comb_ps3 = self.p.get_or_create_combination(comb2)
         assert comb_ps1['combination']['id'] != comb_ps3['combination']['id']
@@ -313,7 +313,7 @@ class TestControllerPrestashop:
         assert comb_ps5['combination']['ean13'] != comb_ps3['combination']['ean13']
         assert comb_ps5['combination']['id'] == comb_ps3['combination']['id']
 
-    #@pytest.mark.skipif(True, reason='Subfactory problems')
+
     def test__get_or_create_product_options__ok(self):
         # Create one
         p1 = ProductFactory()
@@ -359,6 +359,69 @@ class TestControllerPrestashop:
         pov_ps4 = self.p.get_or_create_product_option_value(pov2)
         assert pov_ps3['product_option_value']['id'] == pov_ps4['product_option_value']['id']
 
+    def test__get_or_create_price_ok(self):
+        # Create one
+        comb = CombinationFactory()
+        comb_ps1 = self.p.get_or_create_combination(comb)
+        p1 = PriceFactory(combination_id = comb, pvp_siva = 10.5)
+        p_ps1 = self.p.get_or_create_price(p1)
+        assert p1.ps_id
+        assert float(p_ps1['combination']['price']) == 10.5
+
+        # Get one
+        p_ps2 = self.p.get_or_create_price(p1)
+        assert p_ps1['combination']['id'] == p_ps2['combination']['id']
+
+        # Create other
+        prod1 = ProductFactory(icg_id=7499, ps_id=9)
+        comb2 = CombinationFactory(icg_talla="24", icg_color="***", product_id = prod1)
+        p2 = PriceFactory(combination_id = comb2, pvp_siva = 20.59)
+        p_ps3 = self.p.get_or_create_price(p2)
+        assert p_ps1['combination']['id'] != p_ps3['combination']['id']
+
+        # Update one
+        p2.pvp_siva = 19.99
+        p_ps5 = self.p.get_or_create_price(p2)
+        assert p_ps5['combination']['price'] != p_ps3['combination']['price']
+        assert p_ps5['combination']['id'] == p_ps3['combination']['id']
+
+
+    def test__get_or_create_stock_ok(self):
+        # Create one
+        comb = CombinationFactory()
+        comb_ps1 = self.p.get_or_create_combination(comb)
+        s = StockFactory(combination_id = comb, icg_stock = 10)
+        s_ps1 = self.p.get_or_create_stock(s)
+        assert s.ps_id
+        assert s_ps1['stock_available']['quantity'] == '10'
+        assert s.icg_stock == s.ps_stock
+
+        # Get one
+        s_ps2 = self.p.get_or_create_stock(s)
+        assert s_ps1['stock_available']['id'] == s_ps2['stock_available']['id']
+
+        # Create other
+        p2 = ProductFactory(icg_id=7499, ps_id = 9)
+        comb2 = CombinationFactory(product_id = p2)
+        comb_ps2 = self.p.get_or_create_combination(comb2)
+        s2 = StockFactory(combination_id = comb2, icg_stock = 12)
+        s_ps3 = self.p.get_or_create_stock(s2)
+        assert s_ps1['stock_available']['id'] != s_ps3['stock_available']['id']
+        s.ps_id != s2.ps_id
+
+        # Update one
+        s2.icg_stock = 6
+        s_ps4 = self.p.get_or_create_stock(s2)
+        assert s_ps4['stock_available']['id'] == s_ps3['stock_available']['id']
+        assert s_ps4['stock_available']['quantity'] == '6'
+        assert s2.icg_stock == s2.ps_stock
+
+        # No delete
+        s2.icg_stock = 0
+        s_ps5 = self.p.get_or_create_stock(s2)
+        assert s2.ps_id
+
+
     def test__get_or_create_specific_price__ok(self):
         # Create one
         comb = CombinationFactory()
@@ -392,7 +455,7 @@ class TestControllerPrestashop:
         sp_ps5 = self.p.get_or_create_specific_price(sp2)
         assert not sp2.ps_id
 
-        #Exeption when try to eliminate not existing combination
+        #Exeption when try to eliminate not existing specific price
         sp2.ps_id = sp2_ps_id
         with pytest.raises(prestapyt.prestapyt.PrestaShopWebServiceError):
             self.p.get_or_create_specific_price(sp2)
@@ -421,57 +484,65 @@ class TestControllerPrestashop:
     def test__carregaNous__ok(self):
         #comb = CombinationFactory.create_batch(2)
         sp = SpecificPriceFactory.create_batch(2)
-        assert len(models.Product.objects.all()) is 2
-        assert len(models.Product.objects.filter(updated = True)) is 2
+        price = PriceFactory.create_batch(2)
+        assert len(models.Product.objects.all()) is 4
+        assert len(models.Product.objects.filter(updated = True)) is 4
         assert len(models.ProductOption.objects.all()) is 0
         assert len(models.ProductOption.objects.filter(updated = True)) is 0
-        assert len(models.Combination.objects.filter(updated = True)) is 2
+        assert len(models.Combination.objects.filter(updated = True)) is 4
         assert len(models.SpecificPrice.objects.filter(updated = True)) is 2
+        assert len(models.Price.objects.filter(updated = True)) is 2
         assert len(models.ProductOptionValue.objects.filter(updated = True)) is 0
 
-        created = self.p.carregaNous()
+        updated, created = self.p.carregaNous()
 
         assert len(models.Manufacturer.objects.filter(updated = True)) is 0
-        assert len(models.Manufacturer.objects.exclude(ps_id = 0)) is 2
+        assert len(models.Manufacturer.objects.exclude(ps_id = 0)) is 4
         assert len(models.Product.objects.filter(updated = True)) is 0
-        assert len(models.Product.objects.exclude(ps_id = 0)) is 2
+        assert len(models.Product.objects.exclude(ps_id = 0)) is 4
         assert len(models.ProductOption.objects.filter(updated = True)) is 0
-        assert len(models.ProductOption.objects.exclude(ps_id = 0)) is 4
-        assert len(models.ProductOptionValue.objects.exclude(ps_id = 0)) is 4
+        assert len(models.ProductOption.objects.exclude(ps_id = 0)) is 8
+        assert len(models.ProductOptionValue.objects.exclude(ps_id = 0)) is 8
         assert len(models.ProductOptionValue.objects.filter(updated = True)) is 0
-        assert len(models.Combination.objects.exclude(ps_id = 0)) is 2
+        assert len(models.Combination.objects.exclude(ps_id = 0)) is 4
         assert len(models.Combination.objects.filter(updated = True)) is 0
         assert len(models.SpecificPrice.objects.filter(updated = True)) is 0
         assert len(models.SpecificPrice.objects.exclude(ps_id = 0)) is 2
+        assert len(models.Price.objects.filter(updated = True)) is 0
+        assert len(models.Price.objects.exclude(ps_id = 0)) is 2
 
-        assert len(created['ps_man']) is 2
-        assert len(created['ps_prod']) is 2
-        assert len(created['ps_po']) is 4
-        assert len(created['ps_pov']) is 0
-        assert len(created['ps_comb']) is 2
-        assert len(created['ps_sp']) is 2
+        assert updated
+        assert len(created['ps_manufacturers']) is 4
+        assert len(created['ps_products']) is 4
+        assert len(created['ps_productoptions']) is 8
+        assert len(created['ps_productoptionvalues']) is 0
+        assert len(created['ps_combinations']) is 4
+        assert len(created['ps_specifiprices']) is 2
+        assert len(created['ps_combinations_prices']) is 2
 
-        for n in  created['ps_man']:
+        for n in  created['ps_manufacturers']:
             assert self._api.get('manufacturers', n)
-        for n in  created['ps_prod']:
+        for n in  created['ps_products']:
             assert self._api.get('products', n)
-        for n in  created['ps_po']:
+        for n in  created['ps_productoptions']:
             assert self._api.get('product_options', n)
-        for n in  created['ps_pov']:
+        for n in  created['ps_productoptionvalues']:
             assert self._api.get('product_option_values', n)
-        for n in created['ps_comb']:
+        for n in created['ps_combinations']:
             assert self._api.get('combinations', n)
-        for n in created['ps_sp']:
+        for n in created['ps_specifiprices']:
             assert self._api.get('specific_prices', n)
 
-        created2 = self.p.carregaNous()
+        updated2, created2 = self.p.carregaNous()
 
-        assert len(created2['ps_man']) is 0
-        assert len(created2['ps_prod']) is 0
-        assert len(created2['ps_po']) is 0
-        assert len(created2['ps_pov']) is 0
-        assert len(created2['ps_comb']) is 0
-        assert len(created2['ps_sp']) is 0
+        assert not updated2
+        assert len(created2['ps_manufacturers']) is 0
+        assert len(created2['ps_products']) is 0
+        assert len(created2['ps_productoptions']) is 0
+        assert len(created2['ps_productoptionvalues']) is 0
+        assert len(created2['ps_combinations']) is 0
+        assert len(created2['ps_specifiprices']) is 0
+        assert len(created2['ps_combinations_prices']) is 0
 
 @pytest.mark.django_db
 class TestControllerICGProducts:
@@ -812,12 +883,13 @@ class TestControllerICGProducts:
         assert len(price_list) is 2
         assert price5.pk is not price.pk
 
-    def test_updateFromICG(self):
+    def test_updateDataFromICG(self):
         prod = ProductFactory(icg_reference='', icg_id=8000)
-        self.c.updateDataFromICG()
+        wasUpdate, updated_data = self.c.updateDataFromICG()
         prod2 = self.c.get_create_or_update('Product', {'icg_id': 8000}, {})
         assert prod.pk is prod2.pk
         assert prod.icg_reference is ''
+        assert wasUpdate
 
 class TestMSSQL:
     @classmethod
