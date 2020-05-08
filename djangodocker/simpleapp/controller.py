@@ -110,5 +110,10 @@ class ControllerICGProducts(object):
             stock = self.get_create_or_update('Stock', {'combination_id': comb},
                 {'icg_stock': icg_stock, 'icg_modified_date': icg_modified_date})
 
+    def updateDataFromICG(self):
+        ps_prod = []
+        updated_products = models.Product.objects.filter(icg_reference = '')
+        for prod in updated_products:
+            prod.updateFromICG()
 
 # vim: et ts=4 sw=4

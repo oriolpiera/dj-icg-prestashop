@@ -812,7 +812,12 @@ class TestControllerICGProducts:
         assert len(price_list) is 2
         assert price5.pk is not price.pk
 
-
+    def test_updateFromICG(self):
+        prod = ProductFactory(icg_reference='', icg_id=8000)
+        self.c.updateDataFromICG()
+        prod2 = self.c.get_create_or_update('Product', {'icg_id': 8000}, {})
+        assert prod.pk is prod2.pk
+        assert prod.icg_reference is ''
 
 class TestMSSQL:
     @classmethod
