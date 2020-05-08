@@ -6,6 +6,8 @@ from . import controller, prestashop
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from .constants  import *
+import logging
+from datetime import datetime
 
 # Create your views here.
 def home(request):
@@ -20,6 +22,7 @@ class ProductView(TemplateView):
         return render(request, self.template_name, {'form': form})
 
     def post(self, request):
+        logger = logging.getLogger('simpleapp.views')
         form = ProductForm(request.POST)
 
         data_form = request.POST.copy()
@@ -37,9 +40,6 @@ class ProductView(TemplateView):
         elif tipus == "stock":
             c.saveNewStocks(None, data)
 
-        # My run on cron async
-        #cp = prestashop.ControllerPrestashop()
-        #cp.carregaNous()
-
+        logger.error("[" + str(datetime.now()) + "] Ens arribat una request PHP tipus: " + tipus + "\n" + data)
         return HttpResponse('Created', status=201)
 

@@ -74,8 +74,8 @@ class ControllerICGProducts(object):
         np  = ms.newPrices(url_base, data)
         for index,row in np.iterrows():
             icg_id = row[1]
-            icg_talla = row[2].strip('\"')
-            icg_color = row[3].strip('\"')
+            icg_talla = row[2]
+            icg_color = row[3]
             dto_percent = row[5]
             iva = row[8]
             pvp_siva = row[9]
@@ -100,8 +100,8 @@ class ControllerICGProducts(object):
         np = ms.newStocks(url_base, data)
         for index,row in np.iterrows():
             icg_id = row[0]
-            icg_talla = row[1].strip('\"')
-            icg_color = row[2].strip('\"')
+            icg_talla = row[1]
+            icg_color = row[2]
             icg_stock = row[7]
             icg_modified_date = make_aware(datetime.strptime(row[8], '%Y-%m-%d %H:%M:%S'))
             prod = self.get_create_or_update('Product', {'icg_id': icg_id},{})
