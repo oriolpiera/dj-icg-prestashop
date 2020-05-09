@@ -37,18 +37,17 @@ class Manufacturer(models.Model):
             result['icg_name'] = man.icg_name
         return result
 
-
     def compare(self, man):
         if self.icg_name != man['manufacturer']['name']:
             man['manufacturer']['name'] = self.icg_name
             return True, man
         return False, {}
 
-
     @classmethod
     def createFromPS(cls, man_dict):
         man = cls(icg_id=0, icg_name = '',
-             ps_name = man_dict['manufacturer']['name'])
+             ps_name = man_dict['manufacturer']['name'],
+             ps_id = man_dict['manufacturer']['id'])
         return man
 
 
@@ -83,6 +82,13 @@ class Product(models.Model):
         product = cls(icg_id=icg_id, icg_reference=icg_reference,
             icg_name=icg_name, manufacturer=manufacturer)
         return product
+
+    @classmethod
+    def createFromPS(cls, product_dict):
+        prod = cls(icg_id=0, icg_reference = product_dict['product']['reference'],
+             ps_name = mytools.get_ps_language(product_dict['product']['name']['language']),
+             ps_id = product_dict['product']['id'])
+        return prod
 
     def compareICG(self, product):
         result = {}
@@ -159,8 +165,8 @@ class Product(models.Model):
 
 class Combination(models.Model):
     ps_id = models.IntegerField(blank=True, null=True) #previous ps_product_attribut
-    icg_talla = models.CharField(max_length=15)
-    icg_color = models.CharField(max_length=15)
+    icg_talla = models.CharField(max_length=15, blank=True)
+    icg_color = models.CharField(max_length=15, blank=True)
     product_id = models.ForeignKey('Product', on_delete=models.CASCADE)
     ean13 = models.CharField(max_length=15, blank=True)
     minimal_quantity = models.IntegerField(default=1)
@@ -177,6 +183,13 @@ class Combination(models.Model):
     def __str__(self):
         return "Combinació del Producte %s de color %s i talla %s" % (
             str(self.product_id.icg_id), self.icg_color, self.icg_talla)
+
+    @classmethod
+    def createFromPS(cls, comb_dict, product):
+        comb = cls(ps_id = comb_dict['combination']['id'],
+            ean13 = comb_dict['combination']['ean13'],
+            product_id = product)
+        return comb
 
     def saved_in_prestashop(self):
         return ps_id
@@ -227,6 +240,13 @@ class Stock(models.Model):
         verbose_name = 'stock'
         verbose_name_plural = 'stocks'
 
+    @classmethod
+    def createFromPS(cls, stock_dict, combination):
+        stock = cls(ps_id = stock_dict['stock_available']['id'],
+            ps_stock = stock_dict['stock_available']['quantity'],
+            combination_id = combination)
+        return stock
+
     def compareICG(self, stock):
         result = {}
         if self.icg_stock != stock.icg_stock:
@@ -263,6 +283,13 @@ class Price(models.Model):
     class Meta:
         verbose_name = 'price'
         verbose_name_plural = 'prices'
+
+    @classmethod
+    def createFromPS(cls, price_dict, combination):
+        price = cls(ps_id = price_dict['combination']['id'],
+            pvp_siva = float(price_dict['combination']['price']),
+            combination_id = combination)
+        return price
 
     def compare(self, product):
         result = {}
@@ -320,8 +347,17 @@ class ProductOption(models.Model):
         po = cls(ps_name = ps_name, ps_icg_type = ps_icg_type, product_id = product)
         return po
 
+    @classmethod
+    def createFromPS(cls, po_dict, product):
+        ps_name = mytools.get_ps_language(po_dict['product_option']['name']['language'])
+        ps_icg_type = ps_name.split('_')[1]
+        po = cls(ps_id = po_dict['product_option']['id'], ps_name = ps_name,
+            ps_icg_type = ps_icg_type, product_id = product)
+        return po
+
     def __str__(self):
-        return "Producte combinacio %d del producte amb ref %s i de nom  %s" % (self.ps_id, self.product_id.icg_reference, self.ps_name)
+        return "Producte combinacio %d del producte amb ref %s i de nom  %s" % (
+            self.ps_id, self.product_id.icg_reference, self.ps_name)
 
     def saved_in_prestashop(self):
         return ps_id
@@ -345,6 +381,13 @@ class ProductOptionValue(models.Model):
     def __str__(self):
         return "Atribut %s del grup %s" % (self.icg_name, self.po_id.ps_name)
 
+    @classmethod
+    def createFromPS(cls, pov_dict, product_option):
+        ps_name = mytools.get_ps_language(pov_dict['product_option_value']['name']['language'])
+        pov = cls(ps_id = pov_dict['product_option_value']['id'], ps_name = ps_name,
+            po_id = product_option)
+        return pov
+
     def saved_in_prestashop(self):
         return ps_id
 
@@ -367,6 +410,13 @@ class SpecificPrice(models.Model):
     class Meta:
         verbose_name = 'specific_price'
         verbose_name_plural = 'specific_prices'
+
+    @classmethod
+    def createFromPS(cls, sp_dict, combination):
+        price = cls(ps_id = sp_dict['specific_price']['id'],
+            dto_percent = float(sp_dict['specific_price']['reduction']) * 100,
+            combination_id = combination)
+        return price
 
     def compare(self, product):
         result = {}

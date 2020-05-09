@@ -544,6 +544,104 @@ class TestControllerPrestashop:
         assert len(created2['ps_specifiprices']) is 0
         assert len(created2['ps_combinations_prices']) is 0
 
+
+    def test_createFromPS_Manufacturer(self):
+        man = ManufacturerFactory()
+        man_ps = self.p.get_or_create_manufacturer(man)
+        man.delete()
+        man2 = models.Manufacturer.createFromPS(man_ps)
+        man2.save()
+        assert man2.ps_name == man_ps['manufacturer']['name']
+        assert man2.ps_id == man_ps['manufacturer']['id']
+        assert len(models.Manufacturer.objects.all()) == 1
+
+    def test_createFromPS_Product(self):
+        prod = ProductFactory()
+        prod_ps = self.p.get_or_create_product(prod)
+        prod.delete()
+        assert len(models.Product.objects.all()) == 0
+        prod2 = models.Product.createFromPS(prod_ps)
+        prod2.save()
+        assert prod2.icg_reference == prod_ps['product']['reference']
+        assert prod2.ps_id == prod_ps['product']['id']
+        assert len(models.Product.objects.all()) == 1
+
+    def test_createFromPS_Combination(self):
+        prod2 = ProductFactory()
+        comb = CombinationFactory(product_id = prod2)
+        comb_ps = self.p.get_or_create_combination(comb)
+        comb.delete()
+        assert len(models.Combination.objects.all()) == 0
+        comb2 = models.Combination.createFromPS(comb_ps, prod2)
+        comb2.save()
+        assert comb2.ean13 == comb_ps['combination']['ean13']
+        assert comb2.ps_id == comb_ps['combination']['id']
+        assert len(models.Combination.objects.all()) == 1
+
+    def test_createFromPS_Stock(self):
+        comb2 = CombinationFactory()
+        stock = StockFactory()
+        stock_ps = self.p.get_or_create_stock(stock)
+        stock.delete()
+        assert len(models.Stock.objects.all()) == 0
+        stock2 = models.Stock.createFromPS(stock_ps, comb2)
+        stock2.save()
+        assert stock2.ps_stock == stock_ps['stock_available']['quantity']
+        assert stock2.ps_id == stock_ps['stock_available']['id']
+        assert len(models.Stock.objects.all()) == 1
+
+    def test_createFromPS_Price(self):
+        comb = CombinationFactory()
+        comb_ps1 = self.p.get_or_create_combination(comb)
+        p1 = PriceFactory(combination_id = comb, pvp_siva = 10.5)
+        p_ps1 = self.p.get_or_create_price(p1)
+        p1.delete()
+        assert len(models.Price.objects.all()) == 0
+        price2 = models.Price.createFromPS(p_ps1, comb)
+        price2.save()
+        assert price2.pvp_siva == float(p_ps1['combination']['price'])
+        assert price2.ps_id == p_ps1['combination']['id']
+        assert len(models.Price.objects.all()) == 1
+
+    def test_createFromPS_ProductOption(self):
+        p1 = ProductFactory()
+        po = ProductOptionFactory(product_id = p1)
+        po_ps1 = self.p.get_or_create_product_options(po)
+        po.delete()
+        assert len(models.ProductOption.objects.all()) == 0
+        po2 = models.ProductOption.createFromPS(po_ps1, p1)
+        po2.save()
+        assert po2.ps_name == mytools.get_ps_language(po_ps1['product_option']['name']['language'])
+        assert len(models.ProductOption.objects.all()) == 1
+
+    def test_createFromPS_ProductOptionValue(self):
+        po = ProductOptionFactory()
+        po_ps1 = self.p.get_or_create_product_options(po)
+        pov = ProductOptionValueFactory(po_id = po)
+        pov_ps1 = self.p.get_or_create_product_option_value(pov)
+        pov.delete()
+        assert len(models.ProductOptionValue.objects.all()) == 0
+        pov2 = models.ProductOptionValue.createFromPS(pov_ps1, po)
+        pov2.save()
+        assert pov2.ps_id == pov_ps1['product_option_value']['id']
+        assert pov2.ps_name == mytools.get_ps_language(
+            pov_ps1['product_option_value']['name']['language'])
+        assert len(models.ProductOptionValue.objects.all()) == 1
+
+    def test_createFromPS_SpecificPrice(self):
+        comb = CombinationFactory()
+        comb_ps1 = self.p.get_or_create_combination(comb)
+        sp1 = SpecificPriceFactory(combination_id = comb)
+        sp_ps1 = self.p.get_or_create_specific_price(sp1)
+        sp1.delete()
+        assert len(models.SpecificPrice.objects.all()) == 0
+        sp2 = models.SpecificPrice.createFromPS(sp_ps1, comb)
+        sp2.save()
+        assert sp2.ps_id == sp_ps1['specific_price']['id']
+        assert sp2.dto_percent == float(sp_ps1['specific_price']['reduction']) * 100
+        assert len(models.SpecificPrice.objects.all()) == 1
+
+
 @pytest.mark.django_db
 class TestControllerICGProducts:
     @classmethod
