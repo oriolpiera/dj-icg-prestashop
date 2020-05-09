@@ -8,6 +8,8 @@ import prestapyt
 import pandas as pd
 from pandas._testing import assert_frame_equal
 import os
+from django.core.management import call_command
+from djangodocker.simpleapp.management.commands.createfromprestashop import Command
 
 class ManufacturerFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -191,6 +193,7 @@ class TestControllerPrestashop:
         self.helper_cleanPS_oneResource(self, 'product_option')
         self.helper_cleanPS_oneResource(self, 'product_option_value')
         self.helper_cleanPS_oneResource(self, 'specific_price')
+        #self.helper_cleanPS_oneResource(self, 'stock_available') API not allowed
 
     def helper_cleanPS_oneResource(self, resource_name):
         resource_name_plural = resource_name + 's'
@@ -482,7 +485,6 @@ class TestControllerPrestashop:
         assert prod_ps['product']['id']  == response['products']['product']['attrs']['id']
 
     def test__carregaNous__ok(self):
-        #comb = CombinationFactory.create_batch(2)
         sp = SpecificPriceFactory.create_batch(2)
         price = PriceFactory.create_batch(2)
         assert len(models.Product.objects.all()) is 4
@@ -579,12 +581,13 @@ class TestControllerPrestashop:
         assert len(models.Combination.objects.all()) == 1
 
     def test_createFromPS_Stock(self):
-        comb2 = CombinationFactory()
-        stock = StockFactory()
+        prod2 = ProductFactory()
+        comb2 = CombinationFactory(product_id = prod2)
+        stock = StockFactory(combination_id = comb2)
         stock_ps = self.p.get_or_create_stock(stock)
         stock.delete()
         assert len(models.Stock.objects.all()) == 0
-        stock2 = models.Stock.createFromPS(stock_ps, comb2)
+        stock2 = models.Stock.createFromPS(stock_ps, prod2, comb2)
         stock2.save()
         assert stock2.ps_stock == stock_ps['stock_available']['quantity']
         assert stock2.ps_id == stock_ps['stock_available']['id']
@@ -635,11 +638,104 @@ class TestControllerPrestashop:
         sp_ps1 = self.p.get_or_create_specific_price(sp1)
         sp1.delete()
         assert len(models.SpecificPrice.objects.all()) == 0
-        sp2 = models.SpecificPrice.createFromPS(sp_ps1, comb)
+        sp2 = models.SpecificPrice.createFromPS(sp_ps1, comb.product_id)
         sp2.save()
         assert sp2.ps_id == sp_ps1['specific_price']['id']
         assert sp2.dto_percent == float(sp_ps1['specific_price']['reduction']) * 100
         assert len(models.SpecificPrice.objects.all()) == 1
+
+
+    def test_getProductOption(self):
+        prod = ProductFactory()
+        po = ProductOptionFactory(product_id = prod)
+        po_ps = self.p.get_or_create_product_options(po)
+        po.delete()
+        c = Command()
+        po2 = c.getProductOption(po_ps['product_option']['id'], prod)
+        assert len(models.ProductOption.objects.all()) == 1
+        assert po2.ps_name == mytools.get_ps_language(po_ps['product_option']['name']['language'])
+
+    def test_getProductOptionValue(self):
+        prod = ProductFactory()
+        po = ProductOptionFactory(product_id = prod)
+        pov = ProductOptionValueFactory(po_id = po)
+        pov_ps = self.p.get_or_create_product_option_value(pov)
+        pov.delete()
+        c = Command()
+        pov2 = c.getProductOptionValue(pov_ps['product_option_value']['id'], prod)
+        assert len(models.ProductOptionValue.objects.all()) == 1
+        assert pov2.ps_name == mytools.get_ps_language(pov_ps['product_option_value']['name']['language'])
+
+    def test_getProduct(self):
+        prod = ProductFactory()
+        prod_ps = self.p.get_or_create_product(prod)
+        prod.delete()
+        c = Command()
+        assert len(models.Product.objects.all()) == 0
+        prod2 = c.getProduct(prod_ps['product']['id'])
+        assert len(models.Product.objects.all()) == 1
+        assert prod.ps_name == mytools.get_ps_language(prod_ps['product']['name']['language'])
+
+    def test_getCombination(self):
+        prod = ProductFactory()
+        prod_ps = self.p.get_or_create_product(prod)
+        comb = CombinationFactory(product_id = prod)
+        comb_ps = self.p.get_or_create_combination(comb)
+        comb.delete()
+        c = Command()
+        assert len(models.Combination.objects.all()) == 0
+        comb2, prod = c.getCombination(comb_ps['combination']['id'])
+        assert len(models.Combination.objects.all()) == 1
+
+    def test_getStock(self):
+        prod = ProductFactory()
+        prod_ps = self.p.get_or_create_product(prod)
+        comb = CombinationFactory(product_id = prod)
+        comb_ps = self.p.get_or_create_combination(comb)
+        stock = StockFactory(combination_id = comb)
+        stock_ps = self.p.get_or_create_stock(stock)
+        stock.delete()
+        c = Command()
+        assert len(models.Stock.objects.all()) == 0
+        stock2 = c.getStock(stock_ps['stock_available']['id'])
+        assert len(models.Stock.objects.all()) == 1
+
+    def test_getSpecificPrice(self):
+        prod = ProductFactory()
+        prod_ps = self.p.get_or_create_product(prod)
+        comb = CombinationFactory(product_id = prod)
+        comb_ps = self.p.get_or_create_combination(comb)
+        sp = SpecificPriceFactory(combination_id = comb)
+        sp_ps = self.p.get_or_create_specific_price(sp)
+        sp.delete()
+        c = Command()
+        assert len(models.SpecificPrice.objects.all()) == 0
+        sp2 = c.getSpecificPrice(sp_ps['specific_price']['id'])
+        assert len(models.SpecificPrice.objects.all()) == 1
+
+    @pytest.mark.skip('No way')
+    def test_createFromPrestashop(self):
+        prod = ProductFactory()
+        prod_ps = self.p.get_or_create_product(prod)
+        comb = CombinationFactory(product_id = prod)
+        comb_ps = self.p.get_or_create_combination(comb)
+        stock = StockFactory(combination_id = comb)
+        stock_ps = self.p.get_or_create_stock(stock)
+        stock.delete()
+        sp = SpecificPriceFactory(combination_id = comb)
+        sp_ps = self.p.get_or_create_specific_price(sp)
+        sp.delete()
+
+        args = []
+        opts = {}
+        c = Command()
+        c.handle(*args, **opts)
+
+        assert len(models.Product.objects.all()) == 1
+        assert len(models.ProductOption.objects.all()) == 2
+        assert len(models.ProductOptionValue.objects.all()) == 2
+        assert len(models.SpecificPrice.objects.all()) == 1
+        assert len(models.Stock.objects.all()) == 1
 
 
 @pytest.mark.django_db
@@ -1115,6 +1211,13 @@ class TestMSSQL:
         assert_frame_equal(result, test_np)
 
     #TODO: One test fail (no results)
+
+@pytest.mark.django_db
+class TestCommandCreateFromPrestashop:
+    @classmethod
+    def setup_class(self):
+        self.c = controller.ControllerICGProducts()
+
 
 
 # vim: et ts=4 sw=4

@@ -228,6 +228,7 @@ class Combination(models.Model):
 class Stock(models.Model):
     ps_id = models.IntegerField(blank=True, null=True) #stock_availables
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE)
+    product_id = models.ForeignKey('Product', on_delete=models.CASCADE, null=True)
     icg_stock = models.IntegerField(default=0)
     ps_stock = models.IntegerField(default=0)
     created_date = models.DateTimeField(auto_now_add=True)
@@ -241,10 +242,10 @@ class Stock(models.Model):
         verbose_name_plural = 'stocks'
 
     @classmethod
-    def createFromPS(cls, stock_dict, combination):
+    def createFromPS(cls, stock_dict, product, combination):
         stock = cls(ps_id = stock_dict['stock_available']['id'],
             ps_stock = stock_dict['stock_available']['quantity'],
-            combination_id = combination)
+            combination_id = combination, product_id = product)
         return stock
 
     def compareICG(self, stock):
@@ -397,7 +398,8 @@ class ProductOptionValue(models.Model):
 class SpecificPrice(models.Model):
     ps_id = models.IntegerField(default=0)
     ps_reduction = models.FloatField(default=0)
-    combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE, primary_key=True)
+    combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE, null=True)
+    product_id = models.ForeignKey('Product', on_delete=models.CASCADE, null=True)
     dto_percent = models.IntegerField(default=0)
     dto_euros = models.FloatField(default=0)
     dto_euros_siva = models.FloatField(default=0)
@@ -412,10 +414,10 @@ class SpecificPrice(models.Model):
         verbose_name_plural = 'specific_prices'
 
     @classmethod
-    def createFromPS(cls, sp_dict, combination):
+    def createFromPS(cls, sp_dict, product):
         price = cls(ps_id = sp_dict['specific_price']['id'],
             dto_percent = float(sp_dict['specific_price']['reduction']) * 100,
-            combination_id = combination)
+            product_id = product)
         return price
 
     def compare(self, product):
@@ -438,14 +440,11 @@ class SpecificPrice(models.Model):
 
     def updateFromICG(self):
         ms = mssql.MSSQL()
-        result = ms.getPriceData(constants.URLBASE, self.combination_id.product_id.icg_id,
-            self.combination_id.icg_talla, self.combination_id.icg_color)
+        result = ms.getDiscountData(constants.URLBASE, self.product_id.icg_id)
         if isinstance(result, bool):
             return False
         for index,row in result.iterrows():
             self.dto_percent = row[5]
-            self.dto_euros = row[7]
-            self.dto_euros_siva = row[11]
             self.icg_modified_date = make_aware(datetime.strptime(row[12], '%Y-%m-%d %H:%M:%S'))
             self.updated = True
             self.save()

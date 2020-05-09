@@ -142,4 +142,24 @@ class MSSQL(object):
         else:
             return False
 
+    def getDiscountData(self, urlbase, icg_id):
+        filename = 'getProductData.php'
+        if urlbase:
+            filename = urlbase + filename
+        else:
+            filename = os.path.join(os.path.dirname(__file__), filename)
+
+        sql = ("SELECT TOP 1 * FROM view_imp_preus WHERE Codarticulo = " + str(icg_id))
+        obj = {'token': MSSQL_TOKEN, 'sql': sql}
+
+        result = requests.post(filename, data = obj)
+
+        if result.status_code == 200 and result.content:
+            p = result.content.decode('utf8')
+            data = pd.read_csv(io.StringIO(p), delimiter=";", encoding="utf-8", header=None,
+                dtype={0: 'int' })
+            return data
+        else:
+            return False
+
 # vim: et ts=4 sw=4
