@@ -71,8 +71,6 @@ class MSSQL(object):
 
         if result.status_code == 200 and result.content:
             p = result.content.decode('utf8')
-            print(p)
-            print("EStic aqui")
             data = pd.read_csv(io.StringIO(p), delimiter=";", encoding="utf-8", header=None,
                 dtype={0: 'int', 1: 'object', 4: 'object', 5: 'object' })
             return data
@@ -87,7 +85,7 @@ class MSSQL(object):
             filename = os.path.join(os.path.dirname(__file__), filename)
 
         sql = ("SELECT TOP 1 * FROM view_imp_articles WHERE Referencia = '" + icg_reference +
-            "' and TALLA = '" + icg_talla + "' and COLOR ='" + icg_color + "'")
+            "' and TALLA = '" + str(icg_talla) + "' and COLOR ='" + str(icg_color) + "'")
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
 
         result = requests.post(filename, data = obj)
@@ -108,7 +106,7 @@ class MSSQL(object):
             filename = os.path.join(os.path.dirname(__file__), filename)
 
         sql = ("SELECT TOP 1 * FROM view_imp_preus WHERE Codarticulo = " + str(icg_id) +
-            " and Talla = '" + icg_talla + "' and Color ='" + icg_color + "'")
+            " and Talla = '" + str(icg_talla) + "' and Color ='" + str(icg_color) + "'")
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
 
         result = requests.post(filename, data = obj)
@@ -129,7 +127,7 @@ class MSSQL(object):
             filename = os.path.join(os.path.dirname(__file__), filename)
 
         sql = ("SELECT TOP 1 * FROM view_imp_stocks WHERE Codarticulo = " + str(icg_id) +
-            " and Talla = '" + icg_talla + "' and Color ='" + icg_color + "'")
+            " and Talla = '" + str(icg_talla) + "' and Color ='" + str(icg_color) + "'")
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
 
         result = requests.post(filename, data = obj)
@@ -162,4 +160,23 @@ class MSSQL(object):
         else:
             return False
 
+    def getManufacturerData(self, urlbase, ps_name):
+        filename = 'getProductData.php'
+        if urlbase:
+            filename = urlbase + filename
+        else:
+            filename = os.path.join(os.path.dirname(__file__), filename)
+
+        sql = "SELECT TOP 1 * FROM view_imp_articles WHERE Descripcion_Marca = '" + ps_name + "'"
+        obj = {'token': MSSQL_TOKEN, 'sql': sql}
+
+        result = requests.post(filename, data = obj)
+
+        if result.status_code == 200 and result.content:
+            p = result.content.decode('utf8')
+            data = pd.read_csv(io.StringIO(p), delimiter=";", encoding="utf-8", header=None,
+                dtype={0: 'int', 1: 'object', 4: 'object', 5: 'object' })
+            return data
+        else:
+            return False
 # vim: et ts=4 sw=4

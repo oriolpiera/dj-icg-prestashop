@@ -50,13 +50,26 @@ class Manufacturer(models.Model):
              ps_id = man_dict['manufacturer']['id'])
         return man
 
+    def updateFromICG(self):
+        ms = mssql.MSSQL()
+        result = ms.getManufacturerData(constants.URLBASE, self.ps_name)
+        if isinstance(result, bool):
+            return False
+        updated = dict()
+        for index,row in result.iterrows():
+            self.icg_id = row[13]
+            self.icg_name = row[14]
+            self.updated = True
+            self.save()
+        return True
+
 
 class Product(models.Model):
-    icg_id = models.IntegerField(unique=True, blank=True, null=True)
-    icg_reference = models.CharField(max_length=20)
-    icg_name = models.CharField(max_length=100)
+    icg_id = models.IntegerField(blank=True, null=True, default=0)
+    icg_reference = models.CharField(max_length=20, default=0)
+    icg_name = models.CharField(max_length=100, blank=True, default='')
     ps_id = models.IntegerField(blank=True, null=True, default=0)
-    ps_name = models.CharField(max_length=100, default='')
+    ps_name = models.CharField(max_length=100, default='', blank=True)
     manufacturer = models.ForeignKey('Manufacturer', on_delete=models.DO_NOTHING, null=True)
     short_description = models.TextField(blank=True)
     long_description = models.TextField(blank=True)
@@ -72,7 +85,7 @@ class Product(models.Model):
         verbose_name_plural = 'products'
 
     def __str__(self):
-        return "Producte %d de nom %s i referencia %s" % (self.icg_id, self.icg_name, self.icg_reference)
+        return "%s:  %s" % (self.icg_reference, self.icg_name)
 
     def saved_in_prestashop(self):
         return ps_id
@@ -154,12 +167,12 @@ class Product(models.Model):
             return False
         updated = dict()
         for index,row in result.iterrows():
-            updated['icg_id'] = row[0]
-            updated['icg_reference'] = row[1]
-            updated['icg_name'] = row[6]
-            updated['icg_modified_date'] = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
-            updated['updated'] = True
-            Product.objects.filter(icg_id=row[0]).update(**updated)
+            self.icg_id = row[0]
+            self.icg_reference = row[1]
+            self.icg_name = row[6]
+            self.icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
+            self.updated = True
+            self.save()
         return True
 
 
@@ -175,14 +188,16 @@ class Combination(models.Model):
     updated = models.BooleanField(default=True)
     discontinued = models.BooleanField(default=False) #descatalogado
     fields_updated = models.CharField(max_length=200, default="{}")
+    talla_id = models.ForeignKey('ProductOptionValue', on_delete=models.DO_NOTHING, null=True, related_name='talla_id')
+    color_id = models.ForeignKey('ProductOptionValue', on_delete=models.DO_NOTHING, null=True, related_name='color_id')
 
     class Meta:
         verbose_name = 'combination'
         verbose_name_plural = 'combinations'
 
     def __str__(self):
-        return "Combinació del Producte %s de color %s i talla %s" % (
-            str(self.product_id.icg_id), self.icg_color, self.icg_talla)
+        return "%s de color %s i talla %s" % (
+            str(self.product_id.icg_reference), self.icg_color, self.icg_talla)
 
     @classmethod
     def createFromPS(cls, comb_dict, product):
@@ -357,8 +372,7 @@ class ProductOption(models.Model):
         return po
 
     def __str__(self):
-        return "Producte combinacio %d del producte amb ref %s i de nom  %s" % (
-            self.ps_id, self.product_id.icg_reference, self.ps_name)
+        return "%s del producte %s" % (self.ps_name, self.product_id.icg_reference)
 
     def saved_in_prestashop(self):
         return ps_id
