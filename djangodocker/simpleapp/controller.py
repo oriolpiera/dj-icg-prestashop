@@ -12,6 +12,8 @@ class ControllerICGProducts(object):
         self._url_base = url_base
         self.logger = logging.getLogger(__name__)
 
+    def escapeSpecialChars(self, name):
+        return name.replace("{","").replace("}","").replace("'","")
 
     def get_create_or_update(self, obj_name, primary_key, other_fields={}):
         dj_object = getattr(models, obj_name)
@@ -44,9 +46,10 @@ class ControllerICGProducts(object):
         for index,row in np.iterrows():
             icg_id = row[0]
             icg_reference = row[1]
-            icg_talla = row[2]
-            icg_color = row[3]
-            ean13 = row[4]
+            icg_talla = self.escapeSpecialChars(row[2])
+            icg_color = self.escapeSpecialChars(row[3])
+            if row[4]:
+                ean13 = row[4]
             icg_name = row[6]
             iva = row[8]
             icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
@@ -73,8 +76,8 @@ class ControllerICGProducts(object):
         np  = ms.newPrices(url_base, data)
         for index,row in np.iterrows():
             icg_id = row[1]
-            icg_talla = row[2]
-            icg_color = row[3]
+            icg_talla = self.escapeSpecialChars(row[2])
+            icg_color = self.escapeSpecialChars(row[3])
             dto_percent = row[5]
             iva = row[8]
             pvp_siva = row[9]
@@ -99,8 +102,8 @@ class ControllerICGProducts(object):
         np = ms.newStocks(url_base, data)
         for index,row in np.iterrows():
             icg_id = row[0]
-            icg_talla = row[1]
-            icg_color = row[2]
+            icg_talla = self.escapeSpecialChars(row[1])
+            icg_color = self.escapeSpecialChars(row[2])
             icg_stock = row[7]
             icg_modified_date = make_aware(datetime.strptime(row[8], '%Y-%m-%d %H:%M:%S'))
             prod = self.get_create_or_update('Product', {'icg_id': icg_id},{})
@@ -159,9 +162,10 @@ class ControllerICGProducts(object):
         if isinstance(result, bool):
             return False
         for index,row in result.iterrows():
-            comb.icg_talla = row[2]
-            comb.icg_color = row[3]
-            comb.ean13 = row[4]
+            comb.icg_talla = self.escapeSpecialChars(row[2])
+            comb.icg_color = self.escapeSpecialChars(row[3])
+            if row[4]:
+                comb.ean13 = row[4]
             comb.discontinued = True if row[15] == 'T' else False
             comb.updated = False
             comb.save()

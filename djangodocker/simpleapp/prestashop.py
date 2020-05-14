@@ -12,6 +12,9 @@ class ControllerPrestashop(object):
         self._api =  prestapyt.PrestaShopWebServiceDict(
             constants.PS_URL, constants.PS_KEY, debug=True, verbose=True)
 
+    def escapeSpecialChars(self, name):
+        return name.replace("{","").replace("}","").replace("'","")
+
     def update_language(self, language, name):
         if isinstance(language, list):
             for lang in language:
@@ -170,7 +173,8 @@ class ControllerPrestashop(object):
 
             p_data = self._api.get('combinations', options={'schema': 'blank'})
             p_data['combination']['id_product'] = comb.product_id.ps_id
-            p_data['combination']['ean13'] = comb.ean13
+            if comb.ean13:
+                p_data['combination']['ean13'] = comb.ean13
             p_data['combination']['price'] = price
             p_data['combination']['minimal_quantity'] = comb.minimal_quantity
             p_data['combination']['associations']['product_option_values']['product_option_value'] = []
@@ -188,7 +192,8 @@ class ControllerPrestashop(object):
 
     def get_or_create_price(self, price):
         c = self.get_or_create_combination(price.combination_id, price.pvp_siva)
-        price.ps_id = int(c['combination']['id'])
+        if c:
+            price.ps_id = int(c['combination']['id'])
         price.updated = False
         price.save()
         return c
@@ -355,7 +360,7 @@ class ControllerPrestashop(object):
             stock_data['stock_available']['id_product'] = stock.combination_id.product_id.ps_id
             stock_data['stock_available']['id_product_attribute'] = stock.combination_id.ps_id
             stock_data['stock_available']['id_shop'] = 1
-            stock_data['stock_available']['quantity'] = stock.icg_stock
+            stock_data['stock_available']['quantity'] = 0 if stock.icg_stock < 0 else stock.icg_stock
 
             response = self._api.add('stock_availables', stock_data)
             stock.ps_id = int(response['prestashop']['stock_available']['id'])
@@ -408,9 +413,15 @@ class ControllerPrestashop(object):
             s = self.get_or_create_specific_price(sp)
             ps_sp.append(s['specific_price']['id'])
 
-        updated = (ps_sp or ps_price or ps_comb or ps_pov or ps_po or ps_prod or ps_man)
+        ps_stock = []
+        updated_stock = models.Stock.objects.filter(updated = True)
+        for stock in updated_stock:
+            s = self.get_or_create_stock(stock)
+            ps_stock.append(s['stock_available']['id'])
+
+        updated = (ps_sp or ps_price or ps_comb or ps_pov or ps_po or ps_prod or ps_man or ps_stock)
         return updated, {'ps_manufacturers': ps_man, 'ps_products': ps_prod, 'ps_productoptions': ps_po,
             'ps_productoptionvalues': ps_pov, 'ps_combinations': ps_comb,
-            'ps_specifiprices': ps_sp, 'ps_combinations_prices': ps_price}
+            'ps_specifiprices': ps_sp, 'ps_combinations_prices': ps_price, 'ps_stock': ps_stock}
 
 # vim: et ts=4 sw=4

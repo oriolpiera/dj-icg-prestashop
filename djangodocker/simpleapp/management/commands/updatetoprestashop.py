@@ -12,8 +12,11 @@ class Command(BaseCommand):
         c = ControllerICGProducts()
         updated, result = c.updateDataFromICG()
         if updated:
-           logger.info("[" + str(datetime.now()) + "] Objects updated from ICG " + str(result))
+            logger.info("[" + str(datetime.now()) + "] Objects updated from ICG " + str(result))
+
         p = ControllerPrestashop()
         updated, result = p.carregaNous()
         if updated:
-           logger.info("[" + str(datetime.now()) + "] Objects updated to PS " +  str(result))
+            logger.info("[" + str(datetime.now()) + "] Objects updated to PS " +  str(result))
+        #logger.info("UpdateToPS ended")
+        #TODO: In try and if except, send email

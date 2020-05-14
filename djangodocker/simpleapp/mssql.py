@@ -51,7 +51,8 @@ class MSSQL(object):
             filename = os.path.join(os.path.dirname(__file__), filename)
         if data:
             filename = io.StringIO(data)
-        data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None)
+        data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None,
+            dtype={1: 'object',2: 'object'})
         return data
 
 
@@ -126,10 +127,9 @@ class MSSQL(object):
         else:
             filename = os.path.join(os.path.dirname(__file__), filename)
 
-        sql = ("SELECT TOP 1 * FROM view_imp_stocks WHERE Codarticulo = " + str(icg_id) +
+        sql = ("SELECT TOP 1 * FROM view_imp_stocks WHERE Codalmacen = '01' and Codarticulo = " + str(icg_id) +
             " and Talla = '" + str(icg_talla) + "' and Color ='" + str(icg_color) + "'")
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
-
         result = requests.post(filename, data = obj)
 
         if result.status_code == 200 and result.content:

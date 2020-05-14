@@ -178,10 +178,10 @@ class Product(models.Model):
 
 class Combination(models.Model):
     ps_id = models.IntegerField(blank=True, null=True) #previous ps_product_attribut
-    icg_talla = models.CharField(max_length=15, blank=True)
-    icg_color = models.CharField(max_length=15, blank=True)
+    icg_talla = models.CharField(max_length=35, blank=True)
+    icg_color = models.CharField(max_length=35, blank=True)
     product_id = models.ForeignKey('Product', on_delete=models.CASCADE)
-    ean13 = models.CharField(max_length=15, blank=True)
+    ean13 = models.CharField(max_length=16, blank=True)
     minimal_quantity = models.IntegerField(default=1)
     created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
@@ -234,7 +234,8 @@ class Combination(models.Model):
         if isinstance(result, bool):
             return False
         for index,row in result.iterrows():
-            self.ean13 = row[4]
+            if row[4]:
+                self.ean13 = row[4]
             self.discontinued = True if row[15] == 'T' else False
             self.updated = True
             self.save()
@@ -267,6 +268,8 @@ class Stock(models.Model):
         result = {}
         if self.icg_stock != stock.icg_stock:
             result['icg_stock'] = stock.icg_stock
+        if stock.icg_modified_date and (self.icg_modified_date != stock.icg_modified_date):
+            result['icg_modified_date'] = stock.icg_modified_date
         return result
 
     def updateFromICG(self):
@@ -276,7 +279,7 @@ class Stock(models.Model):
         if isinstance(result, bool):
             return False
         for index,row in result.iterrows():
-            self.icg_stock = row[7]
+            self.icg_stock = 0 if row[7] < 0 else row[7]
             self.icg_modified_date = make_aware(datetime.strptime(row[8], '%Y-%m-%d %H:%M:%S'))
             self.updated = True
             self.save()
