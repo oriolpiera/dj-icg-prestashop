@@ -30,11 +30,12 @@ class ControllerICGProducts(object):
                 self.logger.info("Objecte '%s' modificada: %s", str(dj_object), str(updated))
             return m_old
         except ObjectDoesNotExist:
+            m_new.updated = True
             m_new.save()
             self.logger.info("Objecte creada %s", str(dj_object))
             return m_new
         except MultipleObjectsReturned:
-            self.logger.error("Objecte torna més d'un: %s", +
+            self.logger.error("Objecte torna més d'un: %s",
                 str(dj_object.objects.filter(**primary_key)))
 
 

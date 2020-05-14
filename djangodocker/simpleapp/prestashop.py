@@ -266,7 +266,7 @@ class ControllerPrestashop(object):
                     pov_data = self._api.get('product_option_values', pov_ps_id)
                     temp_name = mytools.get_ps_language(
                         pov_data['product_option_value']['name']['language'])
-                    if temp_name == pov.icg_name:
+                    if temp_name == pov.ps_name:
                         pov.ps_id = int(pov_data['product_option_value']['id'])
                         pov.save()
                         return self.get_or_create_product_option_value(pov)
@@ -275,7 +275,7 @@ class ControllerPrestashop(object):
             pov_data = self._api.get('product_option_values', options={'schema': 'blank'})
             pov_data['product_option_value']['id_attribute_group'] = pov.po_id.ps_id
             pov_data['product_option_value']['name']['language'] = self.update_language(
-                pov_data['product_option_value']['name']['language'], pov.icg_name)
+                pov_data['product_option_value']['name']['language'], pov.ps_name)
 
             response = self._api.add('product_option_values', pov_data)
             pov.ps_id = int(response['prestashop']['product_option_value']['id'])
@@ -338,7 +338,7 @@ class ControllerPrestashop(object):
         if stock.ps_id:
             try:
                 response = self._api.get('stock_availables', resource_id=stock.ps_id)
-                response['stock_available']['quantity'] = stock.icg_stock
+                response['stock_available']['quantity'] = 0 if stock.icg_stock < 0 else stock.icg_stock
                 response_edit = self._api.edit('stock_availables', response)
                 stock.ps_stock = int(response_edit['prestashop']['stock_available']['quantity'])
             except prestapyt.prestapyt.PrestaShopWebServiceError:
@@ -351,11 +351,10 @@ class ControllerPrestashop(object):
             response = self._api.get('stock_availables', None,
                 {'filter[id_product_attribute]': stock.combination_id.ps_id, 'limit': '1'})
             if response['stock_availables']:
-                #Product options really exist
+                #Stock really exist
                 stock.ps_id = int(response['stock_availables']['stock_available']['attrs']['id'])
                 stock.save()
                 return self.get_or_create_stock(stock)
-
             stock_data = self._api.get('stock_availables', options={'schema': 'blank'})
             stock_data['stock_available']['id_product'] = stock.combination_id.product_id.ps_id
             stock_data['stock_available']['id_product_attribute'] = stock.combination_id.ps_id

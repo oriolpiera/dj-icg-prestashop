@@ -399,6 +399,12 @@ class ProductOptionValue(models.Model):
     def __str__(self):
         return "Atribut %s del grup %s" % (self.icg_name, self.po_id.ps_name)
 
+    def save(self, *args, **kwargs):
+        super(ProductOptionValue, self).save(*args, **kwargs)
+        if self.icg_name and not self.ps_name:
+            self.ps_name = self.icg_name.replace("{","").replace("}","").replace("'","")
+            self.save()
+
     @classmethod
     def createFromPS(cls, pov_dict, product_option):
         ps_name = mytools.get_ps_language(pov_dict['product_option_value']['name']['language'])

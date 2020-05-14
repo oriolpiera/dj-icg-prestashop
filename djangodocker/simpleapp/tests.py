@@ -175,6 +175,12 @@ class TestSimpleApp:
         assert result
         assert p.updated
 
+    def test__createProductOptionValue(self):
+        pov = ProductOptionValueFactory()
+        pov.icg_name = ' {60 X 60}'
+        pov.ps_name = ''
+        pov.save()
+        assert pov.ps_name == ' 60 X 60'
 
 
 @pytest.mark.django_db
@@ -362,6 +368,18 @@ class TestControllerPrestashop:
         pov_ps4 = self.p.get_or_create_product_option_value(pov2)
         assert pov_ps3['product_option_value']['id'] == pov_ps4['product_option_value']['id']
 
+        # Create one special chars
+        po = ProductOptionFactory()
+        po.save()
+        po_ps1 = self.p.get_or_create_product_options(po)
+        pov = ProductOptionValueFactory(po_id = po, icg_name = '{60X60}', ps_name='')
+        pov.save()
+        pov_ps1 = self.p.get_or_create_product_option_value(pov)
+        assert pov.ps_id
+        assert pov_ps1['product_option_value']['id']
+        assert mytools.get_ps_language(pov_ps1['product_option_value']['name']['language']) == '60X60'
+        assert pov.ps_name == '60X60'
+
     def test__get_or_create_price_ok(self):
         # Create one
         comb = CombinationFactory()
@@ -423,6 +441,19 @@ class TestControllerPrestashop:
         s2.icg_stock = 0
         s_ps5 = self.p.get_or_create_stock(s2)
         assert s2.ps_id
+
+        # Create negative
+        p3 = ProductFactory(icg_id=7399, ps_id = 11)
+        comb3 = CombinationFactory(product_id = p3)
+        comb_ps3 = self.p.get_or_create_combination(comb3)
+        s3 = StockFactory(combination_id = comb3, icg_stock = -10)
+        s_ps6 = self.p.get_or_create_stock(s3)
+        assert s_ps6['stock_available']['quantity'] == '0'
+
+        # Update one negative
+        s2.icg_stock = -6
+        s_ps4 = self.p.get_or_create_stock(s2)
+        assert s_ps4['stock_available']['quantity'] == '0'
 
 
     def test__get_or_create_specific_price__ok(self):
@@ -759,9 +790,9 @@ class TestControllerICGProducts:
         comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
         comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7499)
         prod3 = ProductFactory(icg_id = 7500)
-        comb1 = CombinationFactory(icg_talla="12", icg_color="CAR 12 ML", product_id__icg_id=7500)
-        comb1 = CombinationFactory(icg_talla="24", icg_color="CAR 12 ML", product_id__icg_id=7500)
-        comb1 = CombinationFactory(icg_talla="8", icg_color="CAR 12 ML", product_id__icg_id=7500)
+        comb1 = CombinationFactory(icg_talla="12", icg_color="CAR 12 ML", product_id=prod3)
+        comb1 = CombinationFactory(icg_talla="24", icg_color="CAR 12 ML", product_id=prod3)
+        comb1 = CombinationFactory(icg_talla="8", icg_color="CAR 12 ML", product_id=prod3)
         prod4 = ProductFactory(icg_id = 7501)
         comb1 = CombinationFactory(icg_talla="250ML", icg_color="***", product_id=prod4)
         comb1 = CombinationFactory(icg_talla="75ML", icg_color="***", product_id=prod4)
@@ -785,15 +816,15 @@ class TestControllerICGProducts:
 
     def test_saveNewStocks(self):
         CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
-        prod3 = ProductFactory(icg_id = 7500)
-        CombinationFactory(icg_talla="12", icg_color="CAR 12 ML", product_id__icg_id=7500)
-        CombinationFactory(icg_talla="24", icg_color="CAR 12 ML", product_id__icg_id=7500)
+        prod3 = ProductFactory(icg_id = 7400)
+        CombinationFactory(icg_talla="12", icg_color="CAR 12 ML", product_id=prod3)
+        CombinationFactory(icg_talla="24", icg_color="CAR 12 ML", product_id=prod3)
         CombinationFactory(icg_talla="75ML", icg_color="***", product_id__icg_id=7501)
         CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7502)
         CombinationFactory(icg_talla="S.400ML", icg_color="***", product_id__icg_id=7503)
-        prod3 = ProductFactory(icg_id = 7504)
-        CombinationFactory(icg_talla="11 PIEZAS", icg_color="MADERA", product_id__icg_id=7504)
-        CombinationFactory(icg_talla="5 PIEZAS", icg_color="MADERA", product_id__icg_id=7504)
+        prod4 = ProductFactory(icg_id = 7504)
+        CombinationFactory(icg_talla="11 PIEZAS", icg_color="MADERA", product_id=prod4)
+        CombinationFactory(icg_talla="5 PIEZAS", icg_color="MADERA", product_id=prod4)
         CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7506)
         CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7509)
 
@@ -802,8 +833,8 @@ class TestControllerICGProducts:
         prod_list = models.Product.objects.all()
         comb_list = models.Combination.objects.all()
         stock_list = models.Stock.objects.all()
-        assert len(prod_list) is 8
-        assert len(comb_list) is 10
+        assert len(prod_list) is 9
+        assert len(comb_list) is 12
         assert len(stock_list) is 10
 
     def test_get_create_or_update_ManufacturersOk(self):

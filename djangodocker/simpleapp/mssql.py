@@ -19,7 +19,7 @@ class MSSQL(object):
         if data:
             filename = io.StringIO(data)
         data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None,
-            dtype={0: 'int', 1: 'object', 4: 'object', 5: 'object' })
+            dtype={0: 'int', 1: 'object', 2: 'object', 3: 'object', 4: 'object', 5: 'object' })
         return data
 
 
@@ -73,7 +73,7 @@ class MSSQL(object):
         if result.status_code == 200 and result.content:
             p = result.content.decode('utf8')
             data = pd.read_csv(io.StringIO(p), delimiter=";", encoding="utf-8", header=None,
-                dtype={0: 'int', 1: 'object', 4: 'object', 5: 'object' })
+                dtype={0: 'int', 1: 'object', 2: 'object', 3: 'object',4: 'object', 5: 'object' })
             return data
         else:
             return False
@@ -94,7 +94,7 @@ class MSSQL(object):
         if result.status_code == 200 and result.content:
             p = result.content.decode('utf8')
             data = pd.read_csv(io.StringIO(p), delimiter=";", encoding="utf-8", header=None,
-                dtype={0: 'int', 1: 'object', 4: 'object', 5: 'object' })
+                dtype={0: 'int', 1: 'object', 2: 'object', 3: 'object', 4: 'object', 5: 'object' })
             return data
         else:
             return False
