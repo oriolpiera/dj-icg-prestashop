@@ -152,14 +152,21 @@ class ControllerPrestashop(object):
                 updated = True
             if updated:
                 if 'discontinued' in new_comb_ps:
-                    response = self._api.delete('combinations', resource_ids=comb.ps_id)
+                    self._api.delete('combinations', resource_ids=comb.ps_id)
                     comb.ps_id = 0
+                    comb.updated = False
+                    comb.save()
                     self.logger.info("Combinacio eliminada: %s", str(comb))
+                    return response
                 else:
                     new_comb_ps['combination']['id'] = str(comb.ps_id)
                     #response = self._api.edit('combinations', comb.ps_id, new_comb_ps)
                     response_edit = self._api.edit('combinations', new_comb_ps)
                     self.logger.info("Combinacio modificada: %s", str(new_comb_ps))
+        elif comb.discontinued:
+            comb.updated = False
+            comb.save()
+            return response
         else:
             # Create product option values
             po_talla = self.get_or_create_product_options_django(comb.product_id, 'talla')
@@ -173,7 +180,7 @@ class ControllerPrestashop(object):
 
             p_data = self._api.get('combinations', options={'schema': 'blank'})
             p_data['combination']['id_product'] = comb.product_id.ps_id
-            if comb.ean13:
+            if comb.ean13 and comb.ean13 != ' ':
                 p_data['combination']['ean13'] = comb.ean13
             p_data['combination']['price'] = price
             p_data['combination']['minimal_quantity'] = comb.minimal_quantity
@@ -201,8 +208,8 @@ class ControllerPrestashop(object):
     def get_or_create_product_options_django(self, product, tipus):
         c = controller.ControllerICGProducts()
         ps_name = str(str(product.ps_id) + "_" + tipus)
-        return c.get_create_or_update('ProductOption', {'ps_name' : ps_name, 'product_id': product},
-            {'ps_icg_type': tipus})
+        return c.get_create_or_update('ProductOption', {'ps_name' : ps_name},
+                {'product_id': product, 'ps_icg_type': tipus})
 
     def get_or_create_product_option_value_django(self, po, icg_name):
         c = controller.ControllerICGProducts()
@@ -398,7 +405,8 @@ class ControllerPrestashop(object):
         updated_comb = models.Combination.objects.filter(updated = True)
         for comb in updated_comb:
             c = self.get_or_create_combination(comb)
-            ps_comb.append(c['combination']['id'])
+            if c:
+                ps_comb.append(c['combination']['id'])
 
         ps_price = []
         updated_price = models.Price.objects.filter(updated = True)

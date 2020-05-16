@@ -141,6 +141,16 @@ class TestSimpleApp:
         result = p.updateFromICG()
         assert result
 
+        #Manufacturer not exist
+        p = ProductFactory()
+        p.icg_id = 7500
+        p.icg_reference = '0930095'
+        p.manufacturer = None
+        p.save()
+        result = p.updateFromICG()
+        assert result
+        assert p.manufacturer
+
     def test__updateFromICG_combination(self):
         c = CombinationFactory()
         c.updated = False
@@ -322,6 +332,19 @@ class TestControllerPrestashop:
         assert comb_ps5['combination']['ean13'] != comb_ps3['combination']['ean13']
         assert comb_ps5['combination']['id'] == comb_ps3['combination']['id']
 
+        #No create discontinued
+        p3 = ProductFactory(icg_id=8001, ps_id=19)
+        comb3 = CombinationFactory(icg_talla="24", icg_color="***", product_id = p3)
+        comb3.discontinued = True
+        comb_ps4 = self.p.get_or_create_combination(comb3)
+        assert comb_ps4 is None
+
+        #Error when ean13 is an space
+        comb3 = CombinationFactory(icg_talla="14", icg_color="***", product_id = p3)
+        comb3.ean13 = ' '
+        comb3.save()
+        comb_ps5 = self.p.get_or_create_combination(comb3)
+        assert comb_ps5['combination']['id']
 
     def test__get_or_create_product_options__ok(self):
         # Create one

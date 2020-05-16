@@ -171,6 +171,9 @@ class Product(models.Model):
             self.icg_reference = row[1]
             self.icg_name = row[6]
             self.icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
+            if self.manufacturer == None or self.manufacturer.icg_id != row[13] and row[13]:
+                man = Manufacturer.objects.get_or_create(icg_id = row[13], icg_name = row[14])
+                self.manufacturer = man[0]
             self.updated = True
             self.save()
         return True
@@ -202,7 +205,7 @@ class Combination(models.Model):
     @classmethod
     def createFromPS(cls, comb_dict, product):
         comb = cls(ps_id = comb_dict['combination']['id'],
-            ean13 = comb_dict['combination']['ean13'],
+            ean13 = comb_dict['combination']['ean13'].strip(),
             product_id = product)
         return comb
 
@@ -212,7 +215,7 @@ class Combination(models.Model):
     def compare(self, comb):
         modified = False
         if self.ean13 != str(comb['combination']['ean13']):
-            comb['combination']['ean13'] = self.ean13
+            comb['combination']['ean13'] = self.ean13.strip()
             modified = True
         if self.discontinued:
             comb['discontinued'] = True
@@ -222,7 +225,7 @@ class Combination(models.Model):
     def compareICG(self, comb):
         result = {}
         if self.ean13 != comb.ean13:
-            result['ean13'] = comb.ean13
+            result['ean13'] = comb.ean13.strip()
         if self.discontinued != comb.discontinued:
             result['discontinued'] = comb.discontinued
         return result
@@ -235,8 +238,9 @@ class Combination(models.Model):
             return False
         for index,row in result.iterrows():
             if row[4]:
-                self.ean13 = row[4]
+                self.ean13 = row[4].strip()
             self.discontinued = True if row[15] == 'T' else False
+            self.icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
             self.updated = True
             self.save()
         return True
