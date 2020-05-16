@@ -63,7 +63,7 @@ class MSSQL(object):
         else:
             filename = os.path.join(os.path.dirname(__file__), filename)
 
-        sql = "SELECT TOP 1 * FROM view_imp_articles WHERE Referencia = '" + icg_reference + "'"
+        sql = "SELECT TOP 1 * FROM view_imp_articles WHERE Referencia = '" + str(icg_reference) + "'"
         if icg_id:
             sql = "SELECT TOP 1 * FROM view_imp_articles WHERE CODARTICULO = " + str(icg_id)
         obj = {'token': MSSQL_TOKEN, 'sql': sql}

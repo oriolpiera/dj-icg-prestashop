@@ -86,6 +86,8 @@ class ControllerICGProducts(object):
             icg_modified_date = make_aware(datetime.strptime(row[12], '%Y-%m-%d %H:%M:%S'))
 
             prod = self.get_create_or_update('Product', {'icg_id': icg_id},{})
+            if not prod.icg_reference:
+                prod.updateFromICG()
             comb = self.get_create_or_update('Combination', {'product_id': prod,
                 'icg_color': icg_color, 'icg_talla': icg_talla},{})
             price = self.get_create_or_update('Price', {'combination_id': comb}, {'iva': iva,
@@ -108,6 +110,8 @@ class ControllerICGProducts(object):
             icg_stock = row[7]
             icg_modified_date = make_aware(datetime.strptime(row[8], '%Y-%m-%d %H:%M:%S'))
             prod = self.get_create_or_update('Product', {'icg_id': icg_id},{})
+            if not prod.icg_reference:
+                prod.updateFromICG()
             comb = self.get_create_or_update('Combination', {'product_id': prod,
                 'icg_color': icg_color, 'icg_talla': icg_talla},{})
             stock = self.get_create_or_update('Stock', {'combination_id': comb},

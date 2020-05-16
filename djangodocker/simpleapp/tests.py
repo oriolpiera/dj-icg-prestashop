@@ -787,20 +787,6 @@ class TestControllerICGProducts:
         assert len(comb_list) is 10
 
     def test_saveNewPrices(self):
-        comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
-        comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7499)
-        prod3 = ProductFactory(icg_id = 7500)
-        comb1 = CombinationFactory(icg_talla="12", icg_color="CAR 12 ML", product_id=prod3)
-        comb1 = CombinationFactory(icg_talla="24", icg_color="CAR 12 ML", product_id=prod3)
-        comb1 = CombinationFactory(icg_talla="8", icg_color="CAR 12 ML", product_id=prod3)
-        prod4 = ProductFactory(icg_id = 7501)
-        comb1 = CombinationFactory(icg_talla="250ML", icg_color="***", product_id=prod4)
-        comb1 = CombinationFactory(icg_talla="75ML", icg_color="***", product_id=prod4)
-        comb1 = CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7502)
-        prod6 = ProductFactory(icg_id = 7503)
-        comb1 = CombinationFactory(icg_talla="S.150ML", icg_color="***", product_id=prod6)
-        comb1 = CombinationFactory(icg_talla="S.400ML", icg_color="***", product_id=prod6)
-
         self.c.saveNewPrices()
 
         prod_list = models.Product.objects.all()
@@ -812,30 +798,21 @@ class TestControllerICGProducts:
         assert len(comb_list) is 11
         assert len(sp_list) is 10
         assert len(price_list) is 11
+        for p in prod_list:
+            assert int(p.icg_reference)
 
 
     def test_saveNewStocks(self):
-        CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7498)
-        prod3 = ProductFactory(icg_id = 7400)
-        CombinationFactory(icg_talla="12", icg_color="CAR 12 ML", product_id=prod3)
-        CombinationFactory(icg_talla="24", icg_color="CAR 12 ML", product_id=prod3)
-        CombinationFactory(icg_talla="75ML", icg_color="***", product_id__icg_id=7501)
-        CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7502)
-        CombinationFactory(icg_talla="S.400ML", icg_color="***", product_id__icg_id=7503)
-        prod4 = ProductFactory(icg_id = 7504)
-        CombinationFactory(icg_talla="11 PIEZAS", icg_color="MADERA", product_id=prod4)
-        CombinationFactory(icg_talla="5 PIEZAS", icg_color="MADERA", product_id=prod4)
-        CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7506)
-        CombinationFactory(icg_talla="***", icg_color="***", product_id__icg_id=7509)
-
         self.c.saveNewStocks()
 
         prod_list = models.Product.objects.all()
         comb_list = models.Combination.objects.all()
         stock_list = models.Stock.objects.all()
-        assert len(prod_list) is 9
-        assert len(comb_list) is 12
+        assert len(prod_list) is 8
+        assert len(comb_list) is 10
         assert len(stock_list) is 10
+        for p in prod_list:
+            assert int(p.icg_reference)
 
     def test_get_create_or_update_ManufacturersOk(self):
         # Create one
