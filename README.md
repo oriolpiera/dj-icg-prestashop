@@ -1,4 +1,4 @@
-# PyPSIntegration
+# DjICGPrestashop
 [![Build Status](https://travis-ci.org/oriolpiera/dj-icg-prestashop.svg?branch=master)](https://travis-ci.org/oriolpiera/dj-icg-prestashop)
 [![codecov](https://codecov.io/gh/oriolpiera/dj-icg-prestashop/branch/master/graph/badge.svg)](https://codecov.io/gh/oriolpiera/dj-icg-prestashop)
 
