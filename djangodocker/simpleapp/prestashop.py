@@ -152,12 +152,9 @@ class ControllerPrestashop(object):
                 updated = True
             if updated:
                 if 'discontinued' in new_comb_ps:
-                    self._api.delete('combinations', resource_ids=comb.ps_id)
+                    response = self._api.delete('combinations', resource_ids=comb.ps_id)
                     comb.ps_id = 0
-                    comb.updated = False
-                    comb.save()
                     self.logger.info("Combinacio eliminada: %s", str(comb))
-                    return response
                 else:
                     new_comb_ps['combination']['id'] = str(comb.ps_id)
                     #response = self._api.edit('combinations', comb.ps_id, new_comb_ps)

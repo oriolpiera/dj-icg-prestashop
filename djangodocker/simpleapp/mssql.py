@@ -17,7 +17,7 @@ class MSSQL(object):
         else:
             filename = os.path.join(os.path.dirname(__file__), filename)
         if data:
-            filename = io.StringIO(data)
+            filename = io.StringIO(data, newline=None)
         data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None,
             dtype={0: 'int', 1: 'object', 2: 'object', 3: 'object', 4: 'object', 5: 'object' })
         return data
@@ -34,7 +34,7 @@ class MSSQL(object):
         else:
             filename = os.path.join(os.path.dirname(__file__), filename)
         if data:
-            filename = io.StringIO(data)
+            filename = io.StringIO(data, newline=None)
         data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None,
             dtype={1: 'int',2: 'object',3: 'object', 5: 'int'})
         return data
@@ -50,7 +50,7 @@ class MSSQL(object):
         else:
             filename = os.path.join(os.path.dirname(__file__), filename)
         if data:
-            filename = io.StringIO(data)
+            filename = io.StringIO(data, newline=None)
         data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None,
             dtype={1: 'object',2: 'object'})
         return data
