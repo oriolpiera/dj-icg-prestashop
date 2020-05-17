@@ -26,7 +26,7 @@ class ProductView(TemplateView):
         form = ProductForm(request.POST)
 
         data_form = request.POST.copy()
-        data = data_form.get('data')
+        data = data_form.get('data').replace('\\n','\n')
         token = data_form.get('token')
         tipus = data_form.get('tipus')
         if token != MSSQL_TOKEN:

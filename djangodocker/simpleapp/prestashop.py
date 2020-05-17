@@ -155,11 +155,15 @@ class ControllerPrestashop(object):
                     response = self._api.delete('combinations', resource_ids=comb.ps_id)
                     comb.ps_id = 0
                     self.logger.info("Combinacio eliminada: %s", str(comb))
+                    comb.updated = False
+                    comb.save()
+                    return None
                 else:
                     new_comb_ps['combination']['id'] = str(comb.ps_id)
                     #response = self._api.edit('combinations', comb.ps_id, new_comb_ps)
                     response_edit = self._api.edit('combinations', new_comb_ps)
                     self.logger.info("Combinacio modificada: %s", str(new_comb_ps))
+
         elif comb.discontinued:
             comb.updated = False
             comb.save()

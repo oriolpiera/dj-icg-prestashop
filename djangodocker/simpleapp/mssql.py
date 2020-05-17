@@ -51,9 +51,9 @@ class MSSQL(object):
             filename = os.path.join(os.path.dirname(__file__), filename)
         if data:
             filename = io.StringIO(data, newline=None)
-        data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None,
+        dataframe = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None,
             dtype={1: 'object',2: 'object'})
-        return data
+        return dataframe
 
 
     def getProductData(self, urlbase, icg_reference, icg_id=None):
