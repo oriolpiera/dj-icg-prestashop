@@ -377,6 +377,47 @@ class ControllerPrestashop(object):
         stock.save()
         return self._api.get('stock_availables', resource_id=stock.ps_id)
 
+    def get_or_create_language(self, lang):
+        if lang.ps_id:
+            try:
+                response = self._api.get('languages', resource_id=lang.ps_id)
+            except prestapyt.prestapyt.PrestaShopWebServiceError:
+                #No exist in PS anymore. Recreate
+                lang.ps_id = 0
+                lang.save()
+                return self.get_or_create_language(lang)
+        else:
+            if lang.ps_name:
+                response = self._api.get('languages', None,
+                    {'filter[name]': lang.ps_name, 'limit': '1'})
+                if response['languages']:
+                    #Lang really exist
+                    lang.ps_id = int(response['languages']['language']['attrs']['id'])
+                    lang.save()
+                    return self.get_or_create_language(lang)
+            lang_data = self._api.get('languages', options={'schema': 'blank'})
+            lang_data['language']['name'] = lang.ps_name
+            lang_data['language']['iso_code'] = lang.ps_iso_code
+            if lang.ps_locale:
+                lang_data['language']['locale'] = lang.ps_locale
+            else:
+                lang_data['language'].pop('locale')
+            if lang.ps_language_code:
+                lang_data['language']['language_code'] = lang.ps_language_code
+            else:
+                lang_data['language'].pop('language_code')
+            lang_data['language']['active'] = 1 if lang.ps_active else 0
+            lang_data['language']['is_rtl'] = 1 if lang.ps_is_rtl else 0
+            lang_data['language']['date_format_lite'] = lang.ps_date_format_lite
+            lang_data['language']['date_format_full'] = lang.ps_date_format_full
+
+            response = self._api.add('languages', lang_data)
+            lang.ps_id = int(response['prestashop']['language']['id'])
+
+        lang.updated = False
+        lang.save()
+        return self._api.get('languages', resource_id=lang.ps_id)
+
     def carregaNous(self):
         ps_man = []
         updated_manufacturers = models.Manufacturer.objects.filter(updated = True)

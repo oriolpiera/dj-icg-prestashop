@@ -477,4 +477,54 @@ class SpecificPrice(models.Model):
             self.save()
         return True
 
+class Language(models.Model):
+    """
+    docstring here
+        :param models.Model:
+    """
+    ps_id = models.IntegerField(blank=True, null=True, default=0)
+    ps_name = models.CharField(max_length=32, blank=True, default="")
+    ps_iso_code = models.CharField(max_length=2, blank=True, default="")
+    ps_locale = models.CharField(max_length=5, blank=True, default="")
+    ps_language_code = models.CharField(max_length=5, blank=True, default="")
+    ps_active = models.BooleanField(default=True)
+    ps_is_rtl = models.BooleanField(default=True)
+    ps_date_format_lite = models.CharField(max_length=32, blank=True, default="")
+    ps_date_format_full = models.CharField(max_length=32, blank=True, default="")
+    created_date = models.DateTimeField(auto_now_add=True)
+    modified_date = models.DateTimeField(auto_now=True, blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'language'
+        verbose_name_plural = 'language'
+
+    def __str__(self):
+        return self.ps_name
+
+    def compareICG(self, lang):
+        return {}
+
+    def compare(self, lang):
+        if self.ps_name != lang['language']['name']:
+            lang['language']['name'] = self.ps_name
+            return True, lang
+        return False, {}
+
+    @classmethod
+    def createFromPS(cls, lang_dict):
+        lang = cls(ps_name = lang_dict['language']['name'],
+            ps_id = lang_dict['language']['id'],
+            ps_iso_code = lang_dict['language']['iso_code'],
+            ps_locale = lang_dict['language']['locale'],
+            ps_language_code = lang_dict['language']['language_code'],
+            ps_active = True if lang_dict['language']['active'] == 1 else False,
+            ps_is_rtl = True if lang_dict['language']['is_rtl'] == 1 else False,
+            ps_date_format_lite = lang_dict['language']['date_format_lite'],
+            ps_date_format_full = lang_dict['language']['date_format_full']
+        )
+        return lang
+
+    def updateFromICG(self):
+        return True
+
 # vim: et ts=4 sw=4

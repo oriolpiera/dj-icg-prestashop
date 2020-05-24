@@ -97,6 +97,18 @@ class SpecificPriceFactory(factory.django.DjangoModelFactory):
     combination_id = factory.SubFactory(CombinationFactory)
     dto_percent = random.randint(1,50)
 
+class LanguageFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = 'simpleapp.Language'
+        django_get_or_create = ('ps_id', 'ps_name', 'ps_iso_code')
+
+    ps_id = 0
+    ps_name = factory.Sequence(lambda n: "Lang_%d" % n)
+    ps_iso_code = 'es'
+    ps_date_format_lite = 'd/m/Y'
+    ps_date_format_full = 'd/m/Y H:i:s'
+    ps_is_rtl = 0
+
 
 @pytest.mark.django_db
 class TestSimpleApp:
@@ -211,7 +223,7 @@ class TestControllerPrestashop:
         self.helper_cleanPS_oneResource(self, 'specific_price')
         #self.helper_cleanPS_oneResource(self, 'stock_available') API not allowed
 
-    def helper_cleanPS_oneResource(self, resource_name):
+    def helper_cleanPS_oneResource(self, resource_name, keep_one=False):
         resource_name_plural = resource_name + 's'
         resource_list = []
         response = self._api.get(resource_name_plural, None)
@@ -221,7 +233,10 @@ class TestControllerPrestashop:
                     resource_list.append(int(p['attrs']['id']))
             else:
                 resource_list = [response[resource_name_plural][resource_name]['attrs']['id']]
-            self._api.delete(resource_name_plural, resource_ids=resource_list)
+            if keep_one and len(resource_list) > 1:
+                self._api.delete(resource_name_plural, resource_ids=resource_list[1:])
+            elif not keep_one:
+                self._api.delete(resource_name_plural, resource_ids=resource_list)
 
     def test__get_or_create_manufacturer__ok(self):
         # Create one
@@ -530,6 +545,28 @@ class TestControllerPrestashop:
         prod_dj2 = self.p.get_or_create_product_options_django(prod, 'color')
         assert len(models.ProductOption.objects.all()) is 2
         assert len(models.ProductOption.objects.filter(updated = True)) is 2
+
+
+    def test__get_or_create_language__ok(self):
+        self.helper_cleanPS_oneResource('language', keep_one=True)
+
+        # Create one
+        lang = LanguageFactory()
+        lang_ps = self.p.get_or_create_language(lang)
+        assert lang.ps_id
+        assert lang_ps['language']['id']
+
+        # Get one
+        lang_ps1 = self.p.get_or_create_language(lang)
+        assert lang_ps1['language'] == lang_ps['language']
+
+        # Create other
+        lang1 = LanguageFactory()
+        lang_ps1 = self.p.get_or_create_language(lang1)
+        assert lang1.ps_id
+        assert lang_ps1['language'] is not lang_ps['language']
+
+        self.helper_cleanPS_oneResource('language', keep_one=True)
 
 
     def test__filterProductsReference__ok(self):
