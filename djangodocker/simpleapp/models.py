@@ -101,6 +101,21 @@ class Product(models.Model):
         prod = cls(icg_id=0, icg_reference = product_dict['product']['reference'],
              ps_name = mytools.get_ps_language(product_dict['product']['name']['language']),
              ps_id = product_dict['product']['id'])
+        prod.save()
+
+        if isinstance(product_dict['product']['name']['language'], list):
+            for name in product_dict['product']['name']['language']:
+                lang, created = Language.objects.get_or_create(ps_id = name['attrs']['id'])
+                pt, created = TranslationProduct.objects.get_or_create(prod=prod, lang=lang)
+                pt.ps_name = name['value']
+                pt.save()
+        else:
+            name = product_dict['product']['name']['language']
+            lang, created = Language.objects.get_or_create(ps_id = name['attrs']['id'])
+            pt, created = TranslationProduct.objects.get_or_create(prod=prod, lang=lang)
+            pt.ps_name = name['value']
+            pt.save()
+
         return prod
 
     def compareICG(self, product):
@@ -526,5 +541,53 @@ class Language(models.Model):
 
     def updateFromICG(self):
         return True
+
+class TranslationProduct(models.Model):
+    """
+    docstring here
+        :param models.Model:
+    """
+    lang = models.ForeignKey('Language', on_delete=models.CASCADE, null=True)
+    prod = models.ForeignKey('Product', on_delete=models.CASCADE, null=True)
+
+    ps_name = models.CharField(max_length=128, blank=True, default="")
+    ps_delivery_in_stock = models.CharField(max_length=255, blank=True, default="")
+    ps_delivery_out_stock = models.CharField(max_length=255, blank=True, default="")
+    ps_meta_description = models.CharField(max_length=512, blank=True, default="")
+    ps_meta_keywords = models.CharField(max_length=255, blank=True, default="")
+    ps_meta_title = models.CharField(max_length=255, blank=True, default="")
+    ps_link_rewrite = models.CharField(max_length=128, blank=True, default="")
+    ps_description = models.CharField(max_length=3000, blank=True, default="")
+    ps_description_short = models.CharField(max_length=1000, blank=True, default="")
+    ps_available_now = models.CharField(max_length=255, blank=True, default="")
+    ps_available_later = models.CharField(max_length=255, blank=True, default="")
+
+    class Meta:
+        unique_together = ['lang', 'prod']
+
+class TranslationProductOptionValue(models.Model):
+    """
+    docstring here
+        :param models.Model:
+    """
+    lang = models.ForeignKey('Language', on_delete=models.CASCADE, null=True)
+    pov = models.ForeignKey('ProductOptionValue', on_delete=models.CASCADE, null=True)
+    ps_name = models.CharField(max_length=128, blank=True, default="")
+
+    class Meta:
+        unique_together = ['lang', 'pov']
+
+class TranslationProductOption(models.Model):
+    """
+    docstring here
+        :param models.Model:
+    """
+    lang = models.ForeignKey('Language', on_delete=models.CASCADE, null=True)
+    po = models.ForeignKey('ProductOption', on_delete=models.CASCADE, null=True)
+    ps_name = models.CharField(max_length=128, blank=True, default="")
+    ps_public_name = models.CharField(max_length=64, blank=True, default="")
+
+    class Meta:
+        unique_together = ['lang', 'po']
 
 # vim: et ts=4 sw=4

@@ -157,7 +157,7 @@ class ControllerPrestashop(object):
                     self.logger.info("Combinacio eliminada: %s", str(comb))
                     comb.updated = False
                     comb.save()
-                    return None
+                    return response
                 else:
                     new_comb_ps['combination']['id'] = str(comb.ps_id)
                     #response = self._api.edit('combinations', comb.ps_id, new_comb_ps)

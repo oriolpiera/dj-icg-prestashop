@@ -658,6 +658,7 @@ class TestControllerPrestashop:
         assert prod2.icg_reference == prod_ps['product']['reference']
         assert prod2.ps_id == prod_ps['product']['id']
         assert len(models.Product.objects.all()) == 1
+        assert len(models.TranslationProduct.objects.all()) == 1
 
     def test_createFromPS_Combination(self):
         prod2 = ProductFactory()
@@ -736,7 +737,7 @@ class TestControllerPrestashop:
         assert len(models.SpecificPrice.objects.all()) == 1
 
 
-    def test_getProductOption(self):
+    def test_Command_getProductOption(self):
         prod = ProductFactory()
         po = ProductOptionFactory(product_id = prod)
         po_ps = self.p.get_or_create_product_options(po)
@@ -746,7 +747,7 @@ class TestControllerPrestashop:
         assert len(models.ProductOption.objects.all()) == 1
         assert po2.ps_name == mytools.get_ps_language(po_ps['product_option']['name']['language'])
 
-    def test_getProductOptionValue(self):
+    def test_Command_getProductOptionValue(self):
         prod = ProductFactory()
         po = ProductOptionFactory(product_id = prod)
         pov = ProductOptionValueFactory(po_id = po)
@@ -757,7 +758,7 @@ class TestControllerPrestashop:
         assert len(models.ProductOptionValue.objects.all()) == 1
         assert pov2.ps_name == mytools.get_ps_language(pov_ps['product_option_value']['name']['language'])
 
-    def test_getProduct(self):
+    def test_Command_getProduct(self):
         prod = ProductFactory()
         prod_ps = self.p.get_or_create_product(prod)
         prod.delete()
@@ -767,7 +768,7 @@ class TestControllerPrestashop:
         assert len(models.Product.objects.all()) == 1
         assert prod.ps_name == mytools.get_ps_language(prod_ps['product']['name']['language'])
 
-    def test_getCombination(self):
+    def test_Command_getCombination(self):
         prod = ProductFactory()
         prod_ps = self.p.get_or_create_product(prod)
         comb = CombinationFactory(product_id = prod)
@@ -778,7 +779,7 @@ class TestControllerPrestashop:
         comb2, prod = c.getCombination(comb_ps['combination']['id'])
         assert len(models.Combination.objects.all()) == 1
 
-    def test_getStock(self):
+    def test_Command_getStock(self):
         prod = ProductFactory()
         prod_ps = self.p.get_or_create_product(prod)
         comb = CombinationFactory(product_id = prod)
@@ -791,7 +792,7 @@ class TestControllerPrestashop:
         stock2 = c.getStock(stock_ps['stock_available']['id'])
         assert len(models.Stock.objects.all()) == 1
 
-    def test_getSpecificPrice(self):
+    def test_Command_getSpecificPrice(self):
         prod = ProductFactory()
         prod_ps = self.p.get_or_create_product(prod)
         comb = CombinationFactory(product_id = prod)
@@ -805,7 +806,7 @@ class TestControllerPrestashop:
         assert len(models.SpecificPrice.objects.all()) == 1
 
     @pytest.mark.skip('No way')
-    def test_createFromPrestashop(self):
+    def test_Command_createFromPrestashop(self):
         prod = ProductFactory()
         prod_ps = self.p.get_or_create_product(prod)
         comb = CombinationFactory(product_id = prod)
