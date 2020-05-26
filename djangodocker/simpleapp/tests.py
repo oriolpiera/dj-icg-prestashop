@@ -658,7 +658,25 @@ class TestControllerPrestashop:
         assert prod2.icg_reference == prod_ps['product']['reference']
         assert prod2.ps_id == prod_ps['product']['id']
         assert len(models.Product.objects.all()) == 1
+
+        #Translation
+        tp = models.TranslationProduct.objects.filter(prod = prod2)[0]
+        tp.ps_name = 'Product name 0'
         assert len(models.TranslationProduct.objects.all()) == 1
+
+    def test_updateTranslationFields_Product(self):
+        prod = ProductFactory()
+        prod.updateTranslationFields({'0': 'Field text'}, 'ps_name')
+        assert len(models.TranslationProduct.objects.filter(prod=prod)) == 1
+        tp = models.TranslationProduct.objects.filter(prod=prod)[0]
+        assert tp.ps_name == 'Field text'
+
+        #More than one language
+        prod.updateTranslationFields({'0': 'Desc lang 0', '1': 'Desc lang 1'}, 'ps_description')
+        assert len(models.TranslationProduct.objects.filter(prod=prod)) == 2
+        tp = models.TranslationProduct.objects.filter(prod=prod)[0]
+        assert tp.ps_name == 'Field text'
+        assert tp.ps_description == 'Desc lang 0'
 
     def test_createFromPS_Combination(self):
         prod2 = ProductFactory()

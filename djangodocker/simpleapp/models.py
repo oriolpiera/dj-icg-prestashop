@@ -96,6 +96,13 @@ class Product(models.Model):
             icg_name=icg_name, manufacturer=manufacturer)
         return product
 
+    def updateTranslationFields(self, result, field):
+        for key, value in result.items():
+            lang, created = Language.objects.get_or_create(ps_id = key)
+            pt, created = TranslationProduct.objects.get_or_create(prod=self, lang=lang)
+            setattr(pt, field, value)
+            pt.save()
+
     @classmethod
     def createFromPS(cls, product_dict):
         prod = cls(icg_id=0, icg_reference = product_dict['product']['reference'],
@@ -103,18 +110,26 @@ class Product(models.Model):
              ps_id = product_dict['product']['id'])
         prod.save()
 
-        if isinstance(product_dict['product']['name']['language'], list):
-            for name in product_dict['product']['name']['language']:
-                lang, created = Language.objects.get_or_create(ps_id = name['attrs']['id'])
-                pt, created = TranslationProduct.objects.get_or_create(prod=prod, lang=lang)
-                pt.ps_name = name['value']
-                pt.save()
-        else:
-            name = product_dict['product']['name']['language']
-            lang, created = Language.objects.get_or_create(ps_id = name['attrs']['id'])
-            pt, created = TranslationProduct.objects.get_or_create(prod=prod, lang=lang)
-            pt.ps_name = name['value']
-            pt.save()
+        result = mytools.get_values_ps_field(product_dict['product']['name'])
+        prod.updateTranslationFields(result, 'ps_name')
+        result = mytools.get_values_ps_field(product_dict['product']['description'])
+        prod.updateTranslationFields(result, 'ps_description')
+        result = mytools.get_values_ps_field(product_dict['product']['description_short'])
+        prod.updateTranslationFields(result, 'ps_description_short')
+        result = mytools.get_values_ps_field(product_dict['product']['delivery_in_stock'])
+        prod.updateTranslationFields(result, 'ps_delivery_in_stock')
+        result = mytools.get_values_ps_field(product_dict['product']['delivery_out_stock'])
+        prod.updateTranslationFields(result, 'ps_delivery_out_stock')
+        result = mytools.get_values_ps_field(product_dict['product']['meta_description'])
+        prod.updateTranslationFields(result, 'ps_meta_description')
+        result = mytools.get_values_ps_field(product_dict['product']['meta_keywords'])
+        prod.updateTranslationFields(result, 'ps_meta_title')
+        result = mytools.get_values_ps_field(product_dict['product']['link_rewrite'])
+        prod.updateTranslationFields(result, 'ps_link_rewrite')
+        result = mytools.get_values_ps_field(product_dict['product']['available_now'])
+        prod.updateTranslationFields(result, 'ps_available_now')
+        result = mytools.get_values_ps_field(product_dict['product']['available_later'])
+        prod.updateTranslationFields(result, 'ps_available_later')
 
         return prod
 
