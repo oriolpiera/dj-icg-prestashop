@@ -727,6 +727,11 @@ class TestControllerPrestashop:
         assert po2.ps_name == mytools.get_ps_language(po_ps1['product_option']['name']['language'])
         assert len(models.ProductOption.objects.all()) == 1
 
+        #Translation
+        tpo = models.TranslationProductOption.objects.filter(po = po2)[0]
+        tpo.ps_name = 'Product name 0'
+        assert len(models.TranslationProductOption.objects.all()) == 1
+
     def test_createFromPS_ProductOptionValue(self):
         po = ProductOptionFactory()
         po_ps1 = self.p.get_or_create_product_options(po)
@@ -740,6 +745,11 @@ class TestControllerPrestashop:
         assert pov2.ps_name == mytools.get_ps_language(
             pov_ps1['product_option_value']['name']['language'])
         assert len(models.ProductOptionValue.objects.all()) == 1
+
+        #Translation
+        tpov = models.TranslationProductOptionValue.objects.filter(pov = pov2)[0]
+        tpov.ps_name = 'Product name 0'
+        assert len(models.TranslationProductOptionValue.objects.all()) == 1
 
     def test_createFromPS_SpecificPrice(self):
         comb = CombinationFactory()

@@ -400,12 +400,26 @@ class ProductOption(models.Model):
         po = cls(ps_name = ps_name, ps_icg_type = ps_icg_type, product_id = product)
         return po
 
+    def updateTranslationFields(self, result, field):
+        for key, value in result.items():
+            lang, created = Language.objects.get_or_create(ps_id = key)
+            pt, created = TranslationProductOption.objects.get_or_create(po=self, lang=lang)
+            setattr(pt, field, value)
+            pt.save()
+
     @classmethod
     def createFromPS(cls, po_dict, product):
         ps_name = mytools.get_ps_language(po_dict['product_option']['name']['language'])
         ps_icg_type = ps_name.split('_')[1]
         po = cls(ps_id = po_dict['product_option']['id'], ps_name = ps_name,
             ps_icg_type = ps_icg_type, product_id = product)
+        po.save()
+
+        #Translations
+        result = mytools.get_values_ps_field(po_dict['product_option']['name'])
+        po.updateTranslationFields(result, 'ps_name')
+        result = mytools.get_values_ps_field(po_dict['product_option']['public_name'])
+        po.updateTranslationFields(result, 'ps_public_name')
         return po
 
     def __str__(self):
@@ -439,11 +453,23 @@ class ProductOptionValue(models.Model):
             self.ps_name = self.icg_name.replace("{","").replace("}","").replace("'","")
             self.save()
 
+    def updateTranslationFields(self, result, field):
+        for key, value in result.items():
+            lang, created = Language.objects.get_or_create(ps_id = key)
+            pt, created = TranslationProductOptionValue.objects.get_or_create(pov=self, lang=lang)
+            setattr(pt, field, value)
+            pt.save()
+
     @classmethod
     def createFromPS(cls, pov_dict, product_option):
         ps_name = mytools.get_ps_language(pov_dict['product_option_value']['name']['language'])
         pov = cls(ps_id = pov_dict['product_option_value']['id'], ps_name = ps_name,
             po_id = product_option)
+        pov.save()
+
+        #Translations
+        result = mytools.get_values_ps_field(pov_dict['product_option_value']['name'])
+        pov.updateTranslationFields(result, 'ps_name')
         return pov
 
     def saved_in_prestashop(self):
