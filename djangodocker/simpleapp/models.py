@@ -5,6 +5,78 @@ from . import mytools, mssql, constants
 import csv
 from django.utils.timezone import make_aware
 from datetime import datetime
+#from django.contrib.postgres.fields import JSONField
+
+class Category(models.Model):
+    """
+    docstring here
+        :param models.Model:
+    """
+    ps_id = models.IntegerField(blank=True, null=True, default=0)
+    ps_name = models.CharField(max_length=100, blank=True, default="")
+    ps_parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, null=True)
+    ps_position = models.IntegerField(blank=True, null=True, default=0)
+    ps_active = models.IntegerField(blank=True, null=True, default=1)
+    created_date = models.DateTimeField(auto_now_add=True)
+    modified_date = models.DateTimeField(auto_now=True, blank=True, null=True)
+    updated = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = 'category'
+        verbose_name_plural = 'categories'
+
+    def saved_in_prestashop(self):
+        return ps_id
+
+    def __str__(self):
+        return (str(self.pk) + ": " + str(self.ps_id) + " > " + self.ps_name )
+
+    def compareICG(self, cat):
+        return {}
+
+    def compare(self, cat):
+        return False, {}
+
+    @classmethod
+    def createFromPS(cls, cat_dict):
+        parent = Category.objects.filter(ps_id = cat_dict['category']['id_parent'])
+        if len(parent) > 0:
+            parent = parent[0]
+        else:
+            parent = None
+        cat = cls(ps_name = mytools.get_ps_language(cat_dict['category']['name']['language']),
+            ps_id = cat_dict['category']['id'], ps_parent = parent,
+            ps_position = cat_dict['category']['position'], ps_active = cat_dict['category']['active'])
+        cat.save()
+
+        cat.saveTexts(cat_dict)
+
+        return cat
+
+    def updateFromICG(self):
+        return True
+
+    def updateTranslationFields(self, result, field):
+        for key, value in result.items():
+            lang, created = Language.objects.get_or_create(ps_id = key)
+            tc, created = TranslationCategory.objects.get_or_create(cat=self, lang=lang)
+            setattr(tc, field, value)
+            tc.save()
+
+    def saveTexts(self, cat_dict):
+        result = mytools.get_values_ps_field(cat_dict['category']['name'])
+        self.updateTranslationFields(result, 'ps_name')
+        result = mytools.get_values_ps_field(cat_dict['category']['link_rewrite'])
+        self.updateTranslationFields(result, 'ps_link_rewrite')
+        result = mytools.get_values_ps_field(cat_dict['category']['description'])
+        self.updateTranslationFields(result, 'ps_description')
+        result = mytools.get_values_ps_field(cat_dict['category']['meta_title'])
+        self.updateTranslationFields(result, 'ps_meta_title')
+        result = mytools.get_values_ps_field(cat_dict['category']['meta_description'])
+        self.updateTranslationFields(result, 'ps_meta_description')
+        result = mytools.get_values_ps_field(cat_dict['category']['meta_keywords'])
+        self.updateTranslationFields(result, 'ps_meta_keywords')
+
 
 class Manufacturer(models.Model):
     """
@@ -79,6 +151,9 @@ class Product(models.Model):
     updated = models.BooleanField(default=True)
     visible_web = models.BooleanField(default=True)
     fields_updated = models.CharField(max_length=200, default="{}")
+    ps_category_default = models.ForeignKey('Category', on_delete=models.SET_NULL,
+        null=True, related_name='default_category')
+    ps_category_list = models.ManyToManyField('Category', related_name='cat_list')
 
     class Meta:
         verbose_name = 'product'
@@ -103,6 +178,34 @@ class Product(models.Model):
             setattr(pt, field, value)
             pt.save()
 
+    def saveTexts(self, product_dict):
+        result = mytools.get_values_ps_field(product_dict['product']['name'])
+        self.updateTranslationFields(result, 'ps_name')
+        result = mytools.get_values_ps_field(product_dict['product']['description'])
+        self.updateTranslationFields(result, 'ps_description')
+        result = mytools.get_values_ps_field(product_dict['product']['description_short'])
+        self.updateTranslationFields(result, 'ps_description_short')
+        result = mytools.get_values_ps_field(product_dict['product']['delivery_in_stock'])
+        self.updateTranslationFields(result, 'ps_delivery_in_stock')
+        result = mytools.get_values_ps_field(product_dict['product']['delivery_out_stock'])
+        self.updateTranslationFields(result, 'ps_delivery_out_stock')
+        result = mytools.get_values_ps_field(product_dict['product']['meta_description'])
+        self.updateTranslationFields(result, 'ps_meta_description')
+        result = mytools.get_values_ps_field(product_dict['product']['meta_keywords'])
+        self.updateTranslationFields(result, 'ps_meta_keywords')
+        result = mytools.get_values_ps_field(product_dict['product']['meta_title'])
+        self.updateTranslationFields(result, 'ps_meta_title')
+        result = mytools.get_values_ps_field(product_dict['product']['link_rewrite'])
+        self.updateTranslationFields(result, 'ps_link_rewrite')
+        result = mytools.get_values_ps_field(product_dict['product']['available_now'])
+        self.updateTranslationFields(result, 'ps_available_now')
+        result = mytools.get_values_ps_field(product_dict['product']['available_later'])
+        self.updateTranslationFields(result, 'ps_available_later')
+
+    def saveImages(self, product_dict):
+        if product_dict['product']['associations']['images']['value']:
+            pass
+        
     @classmethod
     def createFromPS(cls, product_dict):
         prod = cls(icg_id=0, icg_reference = product_dict['product']['reference'],
@@ -110,26 +213,8 @@ class Product(models.Model):
              ps_id = product_dict['product']['id'])
         prod.save()
 
-        result = mytools.get_values_ps_field(product_dict['product']['name'])
-        prod.updateTranslationFields(result, 'ps_name')
-        result = mytools.get_values_ps_field(product_dict['product']['description'])
-        prod.updateTranslationFields(result, 'ps_description')
-        result = mytools.get_values_ps_field(product_dict['product']['description_short'])
-        prod.updateTranslationFields(result, 'ps_description_short')
-        result = mytools.get_values_ps_field(product_dict['product']['delivery_in_stock'])
-        prod.updateTranslationFields(result, 'ps_delivery_in_stock')
-        result = mytools.get_values_ps_field(product_dict['product']['delivery_out_stock'])
-        prod.updateTranslationFields(result, 'ps_delivery_out_stock')
-        result = mytools.get_values_ps_field(product_dict['product']['meta_description'])
-        prod.updateTranslationFields(result, 'ps_meta_description')
-        result = mytools.get_values_ps_field(product_dict['product']['meta_keywords'])
-        prod.updateTranslationFields(result, 'ps_meta_title')
-        result = mytools.get_values_ps_field(product_dict['product']['link_rewrite'])
-        prod.updateTranslationFields(result, 'ps_link_rewrite')
-        result = mytools.get_values_ps_field(product_dict['product']['available_now'])
-        prod.updateTranslationFields(result, 'ps_available_now')
-        result = mytools.get_values_ps_field(product_dict['product']['available_later'])
-        prod.updateTranslationFields(result, 'ps_available_later')
+        prod.saveTexts(product_dict)
+        prod.saveImages(product_dict)
 
         return prod
 
@@ -435,6 +520,7 @@ class ProductOptionValue(models.Model):
     icg_name = models.CharField(max_length=15, default='')
     ps_id = models.IntegerField(blank=True, null=True, default=0)
     ps_name = models.CharField(max_length=100, default='')
+    ps_order = models.IntegerField(blank=True, null=True, default=0)
     po_id = models.ForeignKey('ProductOption', on_delete=models.CASCADE)
     created_date = models.DateTimeField(auto_now_add=True)
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
@@ -555,7 +641,7 @@ class Language(models.Model):
         verbose_name_plural = 'language'
 
     def __str__(self):
-        return self.ps_name
+        return (str(self.ps_id) + " : " + self.ps_name)
 
     def compareICG(self, lang):
         return {}
@@ -630,5 +716,33 @@ class TranslationProductOption(models.Model):
 
     class Meta:
         unique_together = ['lang', 'po']
+
+class TranslationCategory(models.Model):
+    """
+    docstring here
+        :param models.Model:
+    """
+    lang = models.ForeignKey('Language', on_delete=models.CASCADE, null=True)
+    cat = models.ForeignKey('Category', on_delete=models.CASCADE, null=True)
+
+    ps_name = models.CharField(max_length=128, blank=True, default="")
+    ps_link_rewrite = models.CharField(max_length=128, blank=True, default="")
+    ps_description = models.CharField(max_length=3000, blank=True, default="")
+    ps_meta_description = models.CharField(max_length=512, blank=True, default="")
+    ps_meta_keywords = models.CharField(max_length=255, blank=True, default="")
+    ps_meta_title = models.CharField(max_length=255, blank=True, default="")
+
+    class Meta:
+        unique_together = ['lang', 'cat']
+
+    def __str__(self):
+        return (str(self.cat) + " && " + str(self.lang) + " => " + self.ps_name)
+
+class Image(models.Model):
+    ps_id = models.IntegerField(blank=True, null=True, default=0)
+    ps_img_type = models.CharField(max_length=20, blank=True, default="")
+    ps_resource = models.CharField(max_length=20, blank=True, default="")
+    ps_url = models.CharField(max_length=128, blank=True, default="")
+    image = models.ImageField(upload_to='images', blank=True)
 
 # vim: et ts=4 sw=4

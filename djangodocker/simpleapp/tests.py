@@ -11,6 +11,15 @@ import os
 from django.core.management import call_command
 from djangodocker.simpleapp.management.commands.createfromprestashop import Command
 
+class CategoryFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = 'simpleapp.Category'
+        django_get_or_create = ('ps_id', 'ps_name')
+
+    ps_id = factory.Sequence(int)
+    ps_name = factory.Sequence(lambda n: 'Category name %d' % n)
+    ps_parent = factory.SubFactory('djangodocker.simpleapp.tests.CategoryFactory')
+
 class ManufacturerFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = 'simpleapp.Manufacturer'
@@ -109,12 +118,26 @@ class LanguageFactory(factory.django.DjangoModelFactory):
     ps_date_format_full = 'd/m/Y H:i:s'
     ps_is_rtl = 0
 
+class TranslationCategoryFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = 'simpleapp.TranslationCategory'
+        django_get_or_create = ('lang', 'cat', 'ps_name')
+
+    lang = factory.SubFactory(LanguageFactory)
+    cat = factory.SubFactory(CategoryFactory)
+    ps_name = factory.Sequence(lambda n: "Trad_Name_Cat_%d" % n)
+
 
 @pytest.mark.django_db
 class TestSimpleApp:
     def test_one(self):
         x = "my simple app test"
         assert 'simple app' in x
+
+    def test_createOneCategory_ok(self):
+        CategoryFactory(ps_parent__ps_parent=None)
+        cat_list = models.Category.objects.all()
+        assert len(cat_list) is 2 #Category parent
 
     def test_createOneManufacturer_ok(self):
         ManufacturerFactory()
@@ -237,6 +260,24 @@ class TestControllerPrestashop:
                 self._api.delete(resource_name_plural, resource_ids=resource_list[1:])
             elif not keep_one:
                 self._api.delete(resource_name_plural, resource_ids=resource_list)
+
+    def test__get_or_create_category__ok(self):
+        # Create one
+        cat = CategoryFactory(ps_parent__ps_parent=None)
+        cat_ps = self.p.get_or_create_category(cat)
+        assert cat.ps_id
+        assert cat_ps['category']['id']
+
+        # Get one
+        cat_ps1 = self.p.get_or_create_category(cat)
+        assert cat_ps1['category'] == cat_ps['category']
+
+        # Create other
+        cat1 = CategoryFactory(ps_parent__ps_parent=None)
+        cat_ps1 = self.p.get_or_create_category(cat1)
+        assert cat1.ps_id
+        assert cat_ps1['category'] is not cat_ps['category']
+
 
     def test__get_or_create_manufacturer__ok(self):
         # Create one
@@ -638,6 +679,23 @@ class TestControllerPrestashop:
         assert len(created2['ps_combinations_prices']) is 0
 
 
+    def test_createFromPS_Category(self):
+        cat = CategoryFactory(ps_parent__ps_parent=None)
+        cat_ps = self.p.get_or_create_category(cat)
+        cat.delete()
+        assert len(models.Category.objects.all()) == 1 #Parent cat not deleted
+        cat2 = models.Category.createFromPS(cat_ps)
+        cat2.save()
+        assert cat2.ps_name == mytools.get_ps_language(cat_ps['category']['name']['language'])
+        assert cat2.ps_id == cat_ps['category']['id']
+        assert len(models.Category.objects.all()) == 2
+
+        #Translation
+        tp = models.TranslationCategory.objects.filter(cat = cat2)[0]
+        tp.ps_name = 'Category name 0'
+        assert len(models.TranslationCategory.objects.all()) == 1
+        #assert False
+
     def test_createFromPS_Manufacturer(self):
         man = ManufacturerFactory()
         man_ps = self.p.get_or_create_manufacturer(man)
@@ -663,6 +721,7 @@ class TestControllerPrestashop:
         tp = models.TranslationProduct.objects.filter(prod = prod2)[0]
         tp.ps_name = 'Product name 0'
         assert len(models.TranslationProduct.objects.all()) == 1
+        #assert False
 
     def test_updateTranslationFields_Product(self):
         prod = ProductFactory()
@@ -786,7 +845,27 @@ class TestControllerPrestashop:
         assert len(models.ProductOptionValue.objects.all()) == 1
         assert pov2.ps_name == mytools.get_ps_language(pov_ps['product_option_value']['name']['language'])
 
+    def test_Command_getCategory(self):
+        cat = CategoryFactory(ps_parent__ps_parent=None)
+        cat_ps = self.p.get_or_create_category(cat)
+        cat.delete()
+        c = Command()
+        assert len(models.Category.objects.all()) == 1 #Category parent still alive
+        cat2 = c.getCategory(cat_ps['category']['id'])
+        assert len(models.Category.objects.all()) == 2
+        assert cat2.ps_name == mytools.get_ps_language(cat_ps['category']['name']['language'])
+
     def test_Command_getProduct(self):
+        prod = ProductFactory()
+        prod_ps = self.p.get_or_create_product(prod)
+        prod.delete()
+        c = Command()
+        assert len(models.Product.objects.all()) == 0
+        prod2 = c.getProduct(prod_ps['product']['id'])
+        assert len(models.Product.objects.all()) == 1
+        assert prod.ps_name == mytools.get_ps_language(prod_ps['product']['name']['language'])
+
+    def test_Command_getProduct_complete(self):
         prod = ProductFactory()
         prod_ps = self.p.get_or_create_product(prod)
         prod.delete()
@@ -856,6 +935,85 @@ class TestControllerPrestashop:
         assert len(models.ProductOptionValue.objects.all()) == 2
         assert len(models.SpecificPrice.objects.all()) == 1
         assert len(models.Stock.objects.all()) == 1
+
+    def test_mytools_update_ps_dict(self):
+        cat = CategoryFactory(ps_parent__ps_parent=None)
+        tc = TranslationCategoryFactory(cat = cat)
+        ps_dict = {'category': {
+            'id': '34', 'id_parent': '0', 'level_depth': '0',
+            'nb_products_recursive': {'attrs': {'notFilterable': 'true'}, 'value': '-1'},
+            'active': '1', 'id_shop_default': '1', 'is_root_category': '0',
+            'position': '25', 'date_add': '2020-05-29 05:14:33', 'date_upd': '2020-05-29 05:14:33',
+            'name': {'language': {'attrs': {'id': '1'}, 'value': 'Old name'}},
+            'link_rewrite': {'language': {'attrs': {'id': '1'}, 'value': 'link-rewrite'}},
+            'description': {'language': {'attrs': {'id': '1'}, 'value': ''}},
+            'meta_title': {'language': {'attrs': {'id': '1'}, 'value': ''}},
+            'meta_description': {'language': {'attrs': {'id': '1'}, 'value': ''}},
+            'meta_keywords': {'language': {'attrs': {'id': '1'}, 'value': ''}},
+            'associations': {'categories': {'attrs': {'nodeType': 'category', 'api': 'categories'},
+                'value': ''}, 
+            'products': {'attrs': {'nodeType': 'product', 'api': 'products'}, 'value': ''}}}}
+        result = mytools.update_ps_dict(ps_dict['category']['name'],cat, 'ps_name')
+        assert ps_dict['category']['name'] == result
+        assert ps_dict['category']['name']['language']['value'] != 'Old name'
+
+        #More than one language
+        cat2 = CategoryFactory(ps_parent__ps_parent=None)
+        lang1 = LanguageFactory()
+        lang2 = LanguageFactory()
+        tc1 = TranslationCategoryFactory(cat = cat2, lang=lang1)
+        tc2 = TranslationCategoryFactory(cat = cat2, lang=lang2)
+        lang1_ps = self.p.get_or_create_language(lang1)
+        lang2_ps = self.p.get_or_create_language(lang2)
+        cat_ps = self.p.get_or_create_category(cat2)
+        ps_dict2 = {'category': {
+            'id': '36', 'id_parent': '0', 'level_depth': '0',
+            'nb_products_recursive': {'attrs': {'notFilterable': 'true'}, 'value': '-1'},
+            'active': '1', 'id_shop_default': '1', 'is_root_category': '0', 'position': '27',
+            'date_add': '2020-05-29 05:37:23', 'date_upd': '2020-05-29 05:37:23',
+            'name': {'language': [
+                {'attrs': {'id': lang1_ps['language']['id']}, 'value': 'Old name'},
+                {'attrs': {'id': lang2_ps['language']['id']}, 'value': 'Old name'}]},
+            'link_rewrite': {'language': [
+                {'attrs': {'id': lang1_ps['language']['id']}, 'value': 'link-rewrite'},
+                {'attrs': {'id': lang2_ps['language']['id']}, 'value': 'link-rewrite'}]},
+            'description': {'language': [
+                {'attrs': {'id': lang1_ps['language']['id']}, 'value': ''},
+                {'attrs': {'id': lang2_ps['language']['id']}, 'value': ''}]},
+            'meta_title': {'language': [
+                {'attrs': {'id': lang1_ps['language']['id']}, 'value': ''},
+                {'attrs': {'id': lang2_ps['language']['id']}, 'value': ''}]},
+            'meta_description': {'language': [
+                {'attrs': {'id': lang1_ps['language']['id']}, 'value': ''},
+                {'attrs': {'id': lang2_ps['language']['id']}, 'value': ''}]},
+            'meta_keywords': {'language': [
+                {'attrs': {'id': lang1_ps['language']['id']}, 'value': ''},
+                {'attrs': {'id': lang2_ps['language']['id']}, 'value': ''}]},
+            'associations': {'categories': {'attrs': {'nodeType': 'category', 'api': 'categories'},
+                'value': ''},
+            'products': {'attrs': {'nodeType': 'product', 'api': 'products'}, 'value': ''}}}}
+        result_name = mytools.update_ps_dict(ps_dict2['category']['name'], cat2, 'ps_name')
+        result_linkrewrite = mytools.update_ps_dict(
+            ps_dict2['category']['link_rewrite'], cat2, 'ps_link_rewrite')
+        result_description = mytools.update_ps_dict(
+            ps_dict2['category']['description'], cat2, 'ps_description')
+        result_meta_title = mytools.update_ps_dict(
+            ps_dict2['category']['meta_title'], cat2, 'ps_meta_title')
+        result_meta_description = mytools.update_ps_dict(
+            ps_dict2['category']['meta_description'], cat2, 'ps_meta_description')
+        result_meta_keywords = mytools.update_ps_dict(
+            ps_dict2['category']['meta_keywords'], cat2, 'ps_meta_keywords')
+        assert ps_dict2['category']['name'] == result_name
+        assert ps_dict2['category']['link_rewrite'] == result_linkrewrite
+        assert ps_dict2['category']['description'] == result_description
+        assert ps_dict2['category']['meta_title'] == result_meta_title
+        assert ps_dict2['category']['meta_description'] == result_meta_description
+        assert ps_dict2['category']['meta_keywords'] == result_meta_keywords
+        assert ps_dict2['category']['name']['language'][0]['value'] != 'Old name'
+        assert ps_dict2['category']['name']['language'][1]['value'] != 'Old name'
+        assert ps_dict2['category']['link_rewrite']['language'][0]['value'] != 'link-rewrite'
+        assert ps_dict2['category']['link_rewrite']['language'][1]['value'] != 'link-rewrite'
+
 
 
 @pytest.mark.django_db
@@ -1182,6 +1340,7 @@ class TestControllerICGProducts:
         assert prod.icg_reference is ''
         assert wasUpdate
 
+
 class TestMSSQL:
     @classmethod
     def setup_class(self):
@@ -1421,8 +1580,8 @@ class TestMSSQL:
     @pytest.mark.skipif('CODECOV_TOKEN' in os.environ, reason="Can't test from CI")
     def test_getStockData(self):
         result = self.ms.getStockData(constants.URLBASE,7498,'***','***')
-        data = {0: [7498], 1: ['***'], 2: ['***'], 3: [1], 4: ["Pintor Fortuny"], 5: [5],
-            6: [0], 7: [5], 8: ['2020-03-06 19:24:47']}
+        data = {0: [7498], 1: ['***'], 2: ['***'], 3: [1], 4: ["Pintor Fortuny"], 5: [4],
+            6: [0], 7: [4], 8: ['2020-05-26 18:14:50']}
         test_np = pd.DataFrame(data)
         assert_frame_equal(result, test_np)
 

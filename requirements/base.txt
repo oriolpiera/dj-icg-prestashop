@@ -4,3 +4,4 @@ git+https://github.com/oriolpiera/prestapyt.git
 pandas
 psycopg2
 django_cron
+Pillow

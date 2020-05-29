@@ -44,6 +44,39 @@ class ControllerPrestashop(object):
                 product.save()
                 return True
 
+    def get_or_create_category(self, category):
+        if category.ps_id:
+            try:
+                response = self._api.get('categories', resource_id=category.ps_id)
+            except prestapyt.prestapyt.PrestaShopWebServiceError:
+                #No exist in PS anymore. Recreate
+                category.ps_id = 0
+                category.save()
+                return self.get_or_create_category(category)
+        else:
+            p_data = self._api.get('categories', options={'schema': 'blank'})
+            p_data['category']['name'] = mytools.update_ps_dict(
+                p_data['category']['name'], category, 'ps_name')
+            p_date['category']['link_rewrite'] = mytools.update_ps_dict(
+                p_data['category']['link_rewrite'], category, 'ps_link_rewrite')
+            p_date['category']['description'] = mytools.update_ps_dict(
+                p_data['category']['description'], category, 'ps_description')
+            p_date['category']['meta_title'] = mytools.update_ps_dict(
+                p_data['category']['meta_title'], category, 'ps_meta_title')
+            p_date['category']['meta_description'] = mytools.update_ps_dict(
+                p_data['category']['meta_description'], category, 'ps_meta_description')
+            p_date['category']['meta_keywords'] = mytools.update_ps_dict(
+                p_data['category']['meta_keywords'], category, 'ps_meta_keywords')
+            p_data['category']['active'] = 1 if category.ps_active else 0
+            response = self._api.add('categories', p_data)
+            category.ps_id = int(response['prestashop']['category']['id'])
+            category.ps_name = category.ps_name
+            self.logger.info("Category created: %s", str(category.ps_name))
+        response = self._api.get('categories', resource_id=category.ps_id)
+        category.updated = False
+        category.save()
+        return response
+
     def get_or_create_manufacturer(self, manufacturer):
         if manufacturer.ps_id:
             try:

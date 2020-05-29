@@ -14,9 +14,13 @@ class Command(BaseCommand):
         self.c = ControllerICGProducts()
         self.p = ControllerPrestashop()
 
+    def cleanDataFromPS(self):
+        updated = {}
+        updated['ps_id'] = False
+        Products.objects.all().update(**updated)
+
     def getPSDict(self, resource, ps_id):
         return self.p._api.get(resource, ps_id)
-
 
     def getProductOption(self, ps_id, prod):
         result_dj_po1 = ProductOption.objects.filter(ps_id = ps_id)
@@ -40,6 +44,16 @@ class Command(BaseCommand):
 
         return pov1
 
+    def getCategory(self, ps_id):
+        result_dj_cat = Category.objects.filter(ps_id = ps_id)
+        if not result_dj_cat:
+            cat_ps_dict = self.getPSDict('categories',  ps_id)
+            cat = Category.createFromPS(cat_ps_dict)
+            cat.save()
+        else:
+            cat = Category.objects.get(pk=result_dj_cat[0].pk)
+        return cat
+
     def getManufacturer(self, ps_id):
         result_dj_man = Manufacturer.objects.filter(ps_id = ps_id)
         if not result_dj_man:
@@ -56,8 +70,20 @@ class Command(BaseCommand):
         if not result_dj_prod:
             prod_ps_dict = self.getPSDict('products',  ps_id)
             man = self.getManufacturer(prod_ps_dict['product']['id_manufacturer'])
+            cat_default = self.getCategory(prod_ps_dict['product']['id_category_default'])
             prod = Product.createFromPS(prod_ps_dict)
             prod.manufacturer = man
+            prod.ps_category_default = cat_default
+            prod.save()
+            print(prod_ps_dict['product']['associations']['categories'])
+            if isinstance(prod_ps_dict['product']['associations']['categories'], list):
+                for cat in prod_ps_dict['product']['associations']['categories']:
+                    c = self.getCategory(cat['category']['id'])
+                    prod.ps_category_list.add(c)
+            elif prod_ps_dict['product']['associations']['categories']['value']:
+                prod.ps_category_list.add(self.getCategory(
+                    prod_ps_dict['product']['associations']['categories']['category']['id']))
+
             self.c.updateProductFromICG(prod)
             prod.save()
         else:
