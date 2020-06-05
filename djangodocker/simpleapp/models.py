@@ -353,7 +353,7 @@ class Combination(models.Model):
             return False
         for index,row in result.iterrows():
             if row[4]:
-                self.ean13 = row[4].strip()
+                self.ean13 = str(row[4]).strip()
             self.discontinued = True if row[15] == 'T' else False
             self.icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
             self.updated = True

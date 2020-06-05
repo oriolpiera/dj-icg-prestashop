@@ -125,14 +125,13 @@ class ControllerICGProducts(object):
             ps_prod.append(prod.icg_reference)
 
         ps_comb = []
-        updated_comb = models.Combination.objects.filter(updated = True, ean13='')
+        updated_comb = models.Combination.objects.filter(updated = True)
         for comb in updated_comb:
             comb.updateFromICG()
             ps_comb.append(comb.product_id.icg_reference)
 
         updated = updated_products or updated_comb
         return updated, {'ps_prod': ps_prod, 'ps_comb': ps_comb}
-
 
     def updateManufacturerFromICG(self, man):
         ms = mssql.MSSQL()

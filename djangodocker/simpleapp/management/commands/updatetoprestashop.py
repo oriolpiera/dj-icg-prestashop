@@ -18,5 +18,7 @@ class Command(BaseCommand):
         updated, result = p.carregaNous()
         if updated:
             logger.info("[" + str(datetime.now()) + "] Objects updated to PS " +  str(result))
-        #logger.info("UpdateToPS ended")
+        if len(result['errors']) > 0:
+            logger.error("[" + str(datetime.now()) + "] Objects with error " + str(result['errors']))
+        logger.info("UpdateToPS ended")
         #TODO: In try and if except, send email

@@ -169,6 +169,9 @@ class ControllerPrestashop(object):
             elif len(cat_list) > 1:
                 p_data['product']['associations']['categories'] = {'attrs':
                     {'nodeType': 'category', 'api': 'categories'}, 'category': cat_list}
+            elif len(cat_list) == 0:
+                p_data['product']['associations']['categories'] = {'attrs': 
+                    {'nodeType': 'category', 'api': 'categories'},'category': 251}
 
             response = self._api.add('products', p_data)
             product.ps_id = int(response['prestashop']['product']['id'])
@@ -468,58 +471,106 @@ class ControllerPrestashop(object):
         return self._api.get('languages', resource_id=lang.ps_id)
 
     def carregaNous(self):
+        ps_exceptions = []
         ps_man = []
         updated_manufacturers = models.Manufacturer.objects.filter(updated = True)
         for man in updated_manufacturers:
-            m = self.get_or_create_manufacturer(man)
-            ps_man.append(m['manufacturer']['id'])
+            try:
+                m = self.get_or_create_manufacturer(man)
+                if m:
+                    ps_man.append(m['manufacturer']['id'])
+            except:
+                print("Exception with : " + str(man))
+                ps_exceptions.append(man)
+                continue
 
         ps_prod = []
         updated_products = models.Product.objects.filter(updated = True)
         for prod in updated_products:
-            p = self.get_or_create_product(prod)
-            ps_prod.append(p['product']['id'])
+            try:
+                p = self.get_or_create_product(prod)
+                if p:
+                    ps_prod.append(p['product']['id'])
+            except:
+                print("Exception with : " + str(prod))
+                ps_exceptions.append(prod)
+                continue
 
         ps_po = []
         updated_product_options = models.ProductOption.objects.filter(updated = True)
         for po in updated_product_options:
-            p = self.get_or_create_product_options(po)
-            ps_po.append(p['product_option']['id'])
+            try:
+                p = self.get_or_create_product_options(po)
+                if p:
+                    ps_po.append(p['product_option']['id'])
+            except:
+                print("Exception with : " + str(po))
+                ps_exceptions.append(po)
+                continue
 
         ps_pov = []
         updated_product_options_values = models.ProductOptionValue.objects.filter(updated = True)
         for pov in updated_product_options_values:
-            p = self.get_or_create_product_option_value(pov)
-            ps_pov.append(p['product_option_value']['id'])
+            try:
+                p = self.get_or_create_product_option_value(pov)
+                if p:
+                    ps_pov.append(p['product_option_value']['id'])
+            except:
+                print("Exception with : " + str(pov))
+                ps_exceptions.append(pov)
+                continue
 
         ps_comb = []
         updated_comb = models.Combination.objects.filter(updated = True)
         for comb in updated_comb:
-            c = self.get_or_create_combination(comb)
-            if c:
-                ps_comb.append(c['combination']['id'])
+            try:
+                c = self.get_or_create_combination(comb)
+                if c:
+                    ps_comb.append(c['combination']['id'])
+            except:
+                print("Exception with : " + str(comb))
+                ps_exceptions.append(comb)
+                continue
 
         ps_price = []
         updated_price = models.Price.objects.filter(updated = True)
         for price in updated_price:
-            c = self.get_or_create_price(price)
-            ps_price.append(c['combination']['id'])
+            try:
+                c = self.get_or_create_price(price)
+                if c:
+                    ps_price.append(c['combination']['id'])
+            except:
+                print("Exception with: " + str(price))
+                ps_exceptions.append(price)
+                continue
 
         ps_sp = []
         updated_specific_price = models.SpecificPrice.objects.filter(updated = True)
         for sp in updated_specific_price:
-            s = self.get_or_create_specific_price(sp)
-            ps_sp.append(s['specific_price']['id'])
+            try:
+                s = self.get_or_create_specific_price(sp)
+                if s:
+                    ps_sp.append(s['specific_price']['id'])
+            except:
+                print("Exception with: " + str(sp))
+                ps_exceptions.append(sp)
+                continue
 
         ps_stock = []
         updated_stock = models.Stock.objects.filter(updated = True)
         for stock in updated_stock:
-            s = self.get_or_create_stock(stock)
-            ps_stock.append(s['stock_available']['id'])
+            try:
+                s = self.get_or_create_stock(stock)
+                if s:
+                    ps_stock.append(s['stock_available']['id'])
+            except:
+                print("Exception with: " + str(stock))
+                ps_exceptions.append(stock)
+                continue
 
         updated = (ps_sp or ps_price or ps_comb or ps_pov or ps_po or ps_prod or ps_man or ps_stock)
         return updated, {'ps_manufacturers': ps_man, 'ps_products': ps_prod, 'ps_productoptions': ps_po,
-            'ps_productoptionvalues': ps_pov, 'ps_combinations': ps_comb,
+             'ps_productoptionvalues': ps_pov, 'ps_combinations': ps_comb, 'errors': ps_exceptions,
             'ps_specifiprices': ps_sp, 'ps_combinations_prices': ps_price, 'ps_stock': ps_stock}
 
 # vim: et ts=4 sw=4
