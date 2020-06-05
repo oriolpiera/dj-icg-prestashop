@@ -173,8 +173,7 @@ class Command(BaseCommand):
 
         logger = logging.getLogger('command.createfromprestashop')
         p = ControllerPrestashop()
-        #stock_list = p._api.get('stock_availables', None, {'limit': limit})
-        stock_list = {'stock_availables': False}
+        stock_list = p._api.get('stock_availables', None, {'limit': limit})
         if stock_list['stock_availables']:
             if isinstance(stock_list['stock_availables']['stock_available'], list):
                 for s in stock_list['stock_availables']['stock_available']:

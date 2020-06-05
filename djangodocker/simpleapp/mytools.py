@@ -21,7 +21,7 @@ def get_values_ps_field(field):
     result = {}
     if isinstance(field['language'], list):
         for lang in field['language']:
-            result[lang['language']['attrs']['id']] = lang['value']
+            result[lang['attrs']['id']] = lang['value']
     else:
         result[field['language']['attrs']['id']] = field['language']['value']
     return result

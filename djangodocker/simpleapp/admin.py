@@ -30,6 +30,27 @@ class ManufacturerAdmin(admin.ModelAdmin):
 
 admin.site.register(Manufacturer, ManufacturerAdmin)
 
+class CategoryAdmin(admin.ModelAdmin):
+    actions = ["baixar_de_PS", "pujar_cap_a_PS"]
+    fields = ['ps_id', 'ps_name', 'ps_parent', 'ps_position','ps_active','created_date', 'modified_date', 'updated']
+    list_display = ['ps_id', 'ps_name', 'ps_parent', 'ps_position','ps_active','created_date', 'modified_date', 'updated']
+    readonly_fields = ['created_date','modified_date']
+    search_fields = ['ps_id', 'ps_name']
+    list_filter = ['updated']
+
+    def baixar_de_PS(self, request, queryset):
+        p = prestashop.ControllerPrestashop()
+        for obj in queryset:
+            #p.tryToUpdateProduct_fromPS(obj)
+            #TODO
+            break
+
+    def pujar_cap_a_PS(self, request, queryset):
+        c = prestashop.ControllerPrestashop()
+        for obj in queryset:
+            c.get_or_create_category(obj)
+
+admin.site.register(Category, CategoryAdmin)
 
 class CombinationAdmin(admin.ModelAdmin):
     actions = ["baixar_de_ICG", "baixar_de_PS", "pujar_cap_a_PS"]
@@ -241,3 +262,87 @@ class ProductesPrestashop(admin.ModelAdmin):
         return readonly_fields
 
 admin.site.register(Product, ProductesPrestashop)
+
+
+class TranslationProductAdmin(admin.ModelAdmin):
+    actions = ["baixar_de_PS", "pujar_cap_a_PS"]
+    fields = ['lang','prod', 'ps_name', 'ps_description', 'ps_description_short','created_date', 'modified_date']
+    list_display = ['lang', 'prod', 'ps_name', 'ps_description', 'ps_description_short','created_date', 'modified_date']
+    readonly_fields = ['created_date','modified_date']
+    search_fields = ['lang','prod', 'ps_name']
+    list_filter = ['lang']
+
+    def baixar_de_PS(self, request, queryset):
+        return True
+
+    def pujar_cap_a_PS(self, request, queryset):
+        return True
+
+admin.site.register(TranslationProduct, TranslationProductAdmin)
+
+class TranslationProductOptionAdmin(admin.ModelAdmin):
+    actions = ["baixar_de_PS", "pujar_cap_a_PS"]
+    fields = ['lang','po', 'ps_name', 'ps_public_name', 'created_date', 'modified_date']
+    list_display = ['lang', 'po', 'ps_name', 'ps_public_name', 'created_date', 'modified_date']
+    readonly_fields = ['created_date','modified_date']
+    search_fields = ['lang','po', 'ps_name']
+    list_filter = ['lang']
+
+    def baixar_de_PS(self, request, queryset):
+        return True
+
+    def pujar_cap_a_PS(self, request, queryset):
+        return True
+
+admin.site.register(TranslationProductOption, TranslationProductOptionAdmin)
+
+class TranslationProductOptionValueAdmin(admin.ModelAdmin):
+    actions = ["baixar_de_PS", "pujar_cap_a_PS"]
+    fields = ['lang','pov', 'ps_name','created_date', 'modified_date']
+    list_display = ['lang', 'pov', 'ps_name', 'created_date', 'modified_date']
+    readonly_fields = ['created_date','modified_date']
+    search_fields = ['lang','pov', 'ps_name']
+    list_filter = ['lang']
+
+    def baixar_de_PS(self, request, queryset):
+        return True
+
+    def pujar_cap_a_PS(self, request, queryset):
+        return True
+
+admin.site.register(TranslationProductOptionValue, TranslationProductOptionValueAdmin)
+
+class TranslationCategoryAdmin(admin.ModelAdmin):
+    actions = ["baixar_de_PS", "pujar_cap_a_PS"]
+    fields = ['lang','cat', 'ps_name', 'ps_link_rewrite','ps_description',
+        'ps_meta_description','ps_meta_keywords','ps_meta_title','created_date', 'modified_date']
+    list_display = ['lang', 'cat', 'ps_name', 'ps_link_rewrite','ps_description',
+        'ps_meta_description','ps_meta_keywords','ps_meta_title','created_date', 'modified_date']
+    readonly_fields = ['created_date','modified_date']
+    search_fields = ['lang','cat', 'ps_name']
+    list_filter = ['lang']
+
+    def baixar_de_PS(self, request, queryset):
+        return True
+
+    def pujar_cap_a_PS(self, request, queryset):
+        return True
+
+admin.site.register(TranslationCategory, TranslationCategoryAdmin)
+
+class ImageAdmin(admin.ModelAdmin):
+    actions = ["baixar_de_PS", "pujar_cap_a_PS"]
+    fields = ['ps_id', 'ps_img_type', 'ps_resource','ps_url','image','created_date', 'modified_date']
+    list_display = ['ps_id', 'ps_img_type', 'ps_resource','ps_url','image','created_date', 'modified_date']
+    readonly_fields = ['created_date','modified_date']
+    search_fields = ['ps_id','ps_url']
+    list_filter = ['ps_img_type', 'ps_resource']
+
+    def baixar_de_PS(self, request, queryset):
+        return True
+
+    def pujar_cap_a_PS(self, request, queryset):
+        return True
+
+admin.site.register(Image, ImageAdmin)
+

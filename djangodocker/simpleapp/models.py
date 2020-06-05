@@ -688,6 +688,8 @@ class TranslationProduct(models.Model):
     ps_description_short = models.CharField(max_length=1000, blank=True, default="")
     ps_available_now = models.CharField(max_length=255, blank=True, default="")
     ps_available_later = models.CharField(max_length=255, blank=True, default="")
+    created_date = models.DateTimeField(auto_now_add=True)
+    modified_date = models.DateTimeField(auto_now=True, blank=True, null=True)
 
     class Meta:
         unique_together = ['lang', 'prod']
@@ -700,6 +702,8 @@ class TranslationProductOptionValue(models.Model):
     lang = models.ForeignKey('Language', on_delete=models.CASCADE, null=True)
     pov = models.ForeignKey('ProductOptionValue', on_delete=models.CASCADE, null=True)
     ps_name = models.CharField(max_length=128, blank=True, default="")
+    created_date = models.DateTimeField(auto_now_add=True)
+    modified_date = models.DateTimeField(auto_now=True, blank=True, null=True)
 
     class Meta:
         unique_together = ['lang', 'pov']
@@ -713,6 +717,8 @@ class TranslationProductOption(models.Model):
     po = models.ForeignKey('ProductOption', on_delete=models.CASCADE, null=True)
     ps_name = models.CharField(max_length=128, blank=True, default="")
     ps_public_name = models.CharField(max_length=64, blank=True, default="")
+    created_date = models.DateTimeField(auto_now_add=True)
+    modified_date = models.DateTimeField(auto_now=True, blank=True, null=True)
 
     class Meta:
         unique_together = ['lang', 'po']
@@ -731,6 +737,8 @@ class TranslationCategory(models.Model):
     ps_meta_description = models.CharField(max_length=512, blank=True, default="")
     ps_meta_keywords = models.CharField(max_length=255, blank=True, default="")
     ps_meta_title = models.CharField(max_length=255, blank=True, default="")
+    created_date = models.DateTimeField(auto_now_add=True)
+    modified_date = models.DateTimeField(auto_now=True, blank=True, null=True)
 
     class Meta:
         unique_together = ['lang', 'cat']
@@ -744,5 +752,7 @@ class Image(models.Model):
     ps_resource = models.CharField(max_length=20, blank=True, default="")
     ps_url = models.CharField(max_length=128, blank=True, default="")
     image = models.ImageField(upload_to='images', blank=True)
+    created_date = models.DateTimeField(auto_now_add=True)
+    modified_date = models.DateTimeField(auto_now=True, blank=True, null=True)
 
 # vim: et ts=4 sw=4

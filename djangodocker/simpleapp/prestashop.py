@@ -139,7 +139,7 @@ class ControllerPrestashop(object):
                 p_data['product']['id_manufacturer'] = 0
             p_data['product']['reference'] = product.icg_reference
             p_data['product']['price'] = 0
-            p_data['product']['id_category_default'] = constants.ICG_CATEGORY
+
             p_data['product']['position_in_category'] = 0
             p_data['product']['id_tax_rules_group'] = 1
             p_data['product']['minimal_quantity'] = 1
@@ -153,6 +153,22 @@ class ControllerPrestashop(object):
                 p_data['product']['name']['language'], product.icg_name)
             p_data['product']['link_rewrite']['language'] = self.update_language(
                 p_data['product']['link_rewrite']['language'], "link-rewrite")
+
+            #Add Categories
+            if product.ps_category_default:
+                def_cat = self.get_or_create_category(product.ps_category_default)
+                p_data['product']['id_category_default'] = def_cat['category']['id']
+            else:
+                p_data['product']['id_category_default'] = constants.ICG_CATEGORY
+            cat_list = []
+            for cat in product.ps_category_list.all():
+                cat_list.append({'id': cat.ps_id})
+            if len(cat_list) == 1:
+                p_data['product']['associations']['categories'] = {'attrs': 
+                    {'nodeType': 'category', 'api': 'categories'},'category': cat_list[0]}
+            elif len(cat_list) > 1:
+                p_data['product']['associations']['categories'] = {'attrs':
+                    {'nodeType': 'category', 'api': 'categories'}, 'category': cat_list}
 
             response = self._api.add('products', p_data)
             product.ps_id = int(response['prestashop']['product']['id'])

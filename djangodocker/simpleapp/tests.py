@@ -343,6 +343,17 @@ class TestControllerPrestashop:
         assert prod_ps5['product']['active'] == '0'
         assert prod_ps5['product']['id'] == prod_ps['product']['id']
 
+        # Create other with Categories
+        cat = CategoryFactory(ps_parent__ps_parent=None, ps_id = 3)
+        cat2 = CategoryFactory(ps_parent__ps_parent=None, ps_id = 4)
+        prod3 = ProductFactory(ps_category_default = cat)
+        prod3.ps_category_list.add(cat)
+        prod3.ps_category_list.add(cat2)
+        prod_ps6 = self.p.get_or_create_product(prod3)
+        assert int(prod_ps6['product']['id_category_default']) == prod3.ps_category_default.ps_id
+        assert prod_ps6['product']['associations']['categories']['category'] == [{'id': '3'}, {'id': '4'}]
+        
+        
 
     def test__get_or_create_combination__ok(self):
         # Create one
