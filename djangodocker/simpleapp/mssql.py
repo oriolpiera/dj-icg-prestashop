@@ -111,7 +111,6 @@ class MSSQL(object):
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
 
         result = requests.post(filename, data = obj)
-
         if result.status_code == 200 and result.content:
             p = result.content.decode('utf8')
             data = pd.read_csv(io.StringIO(p), delimiter=";", encoding="utf-8", header=None,

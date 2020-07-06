@@ -95,7 +95,7 @@ class ControllerICGProducts(object):
 
             if dto_percent:
                 spec_price = self.get_create_or_update('SpecificPrice', {'combination_id': comb},
-                    {'dto_percent': dto_percent, 'icg_modified_date': icg_modified_date})
+                    {'dto_percent': dto_percent, 'icg_modified_date': icg_modified_date, 'product_id': prod})
 
 
     def saveNewStocks(self, url_base=None, data=None):
@@ -207,12 +207,17 @@ class ControllerICGProducts(object):
 
     def updateSpecificPriceFromICG(self, sp):
         ms = mssql.MSSQL()
-        result = ms.getDiscountData(constants.URLBASE, sp.product_id.icg_id)
+        if sp.product_id:
+            result = ms.getDiscountData(constants.URLBASE, sp.product_id.icg_id)
+        else:
+            result = ms.getDiscountData(constants.URLBASE, sp.combination_id.product_id.icg_id)
         if isinstance(result, bool):
             return False
         for index,row in result.iterrows():
             sp.dto_percent = row[5]
             sp.icg_modified_date = make_aware(datetime.strptime(row[12], '%Y-%m-%d %H:%M:%S'))
+            if not sp.product_id:
+                sp.product_id = self.get_create_or_update('Product', {'icg_id': row[1]})
             sp.updated = False
             sp.save()
         return True

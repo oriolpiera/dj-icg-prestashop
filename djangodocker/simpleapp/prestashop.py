@@ -44,6 +44,16 @@ class ControllerPrestashop(object):
                 product.save()
                 return True
 
+    def tryToUpdateSpecificPrice_fromPS(self, sp):
+        if sp.ps_id:
+            response = self._api.get('specific_prices', sp.ps_id)
+            if response['specific_prices']:
+                #Discount exist
+                sp.ps_combination_id = int(response['specific_prices']['specific_price']['id_product_attribute'])
+                sp.ps_reduction = float(response['specific_prices']['specific_price']['reduction'])
+                sp.save()
+                return True
+
     def get_or_create_category(self, category):
         if category.ps_id:
             try:
@@ -93,6 +103,14 @@ class ControllerPrestashop(object):
                 response = self._api.edit('manufacturers', new_man_ps)
                 self.logger.info("Manufacturer modificat: %s", str(new_man_ps))
         else:
+            if manufacturer.ps_name:
+                response = self._api.get('manufacturers', None,
+                    {'filter[name]': manufacturer.ps_name, 'limit': '1'})
+                if response['manufacturers']:
+                    #Product exist
+                    manufacturer.ps_id = int(response['manufacturers']['manufacturer']['attrs']['id'])
+                    manufacturer.save()
+                    return self.get_or_create_manufacturer(manufacturer)
             p_data = self._api.get('manufacturers', options={'schema': 'blank'})
             p_data['manufacturer']['name'] = manufacturer.icg_name
             response = self._api.add('manufacturers', p_data)
@@ -115,9 +133,23 @@ class ControllerPrestashop(object):
                 return self.get_or_create_product(product)
 
             updated, new_prod_ps = product.compare(response)
-            if updated:
+
+            if not product.visible_web:
                 new_prod_ps['product'].pop('manufacturer_name', None)
                 new_prod_ps['product'].pop('quantity', None)
+                new_prod_ps['product'].pop('position_in_category', None)
+                new_prod_ps['product']['active'] = 0
+                new_prod_ps['product']['id_category_default'] = constants.NO_VISIBLE_CATEGORY
+                response = self._api.edit('products', new_prod_ps)
+                self.logger.info("Producte modificat: %s", str(new_prod_ps))
+                response = self._api.get('products', resource_id=product.ps_id)
+            if updated:
+                if not product.visible_web:
+                    new_prod_ps['product']['active'] = 0
+                    new_prod_ps['product']['id_category_default'] = constants.NO_VISIBLE_CATEGORY
+                new_prod_ps['product'].pop('manufacturer_name', None)
+                new_prod_ps['product'].pop('quantity', None)
+                new_prod_ps['product'].pop('position_in_category', None)
                 response = self._api.edit('products', new_prod_ps)
                 self.logger.info("Producte modificat: %s", str(new_prod_ps))
                 response = self._api.get('products', resource_id=product.ps_id)
@@ -216,7 +248,7 @@ class ControllerPrestashop(object):
                     response_edit = self._api.edit('combinations', new_comb_ps)
                     self.logger.info("Combinacio modificada: %s", str(new_comb_ps))
 
-        elif comb.discontinued:
+        elif comb.discontinued or not comb.product_id.visible_web:
             comb.updated = False
             comb.save()
             return response
@@ -278,6 +310,10 @@ class ControllerPrestashop(object):
                 po.save()
                 return self.get_or_create_product_options(po)
 
+        elif not po.product_id.visible_web:
+            po.updated = False
+            po.save()
+            return False
         else:
             ps_name = str(po.product_id.ps_id) + "_" + po.ps_icg_type
             response = self._api.get('product_options', None,
@@ -367,10 +403,23 @@ class ControllerPrestashop(object):
                     new_price_ps['specific_price']['id'] = str(price.ps_id)
                     response_edit = self._api.edit('specific_prices', new_price_ps)
                     self.logger.info("Descompte modificat: %s", str(new_price_ps))
+        elif not price.product_id.visible_web:
+            price.updated = False
+            price.save()
+            return False
         else:
+            if price.product_id.ps_id:
+                response = self._api.get('specific_prices', None,
+                    {'filter[id_product]': price.product_id.ps_id, 'limit': '1'})
+                if response['specific_prices']:
+                    #SP exist
+                    price.ps_id = int(response['specific_prices']['specific_price']['attrs']['id'])
+                    price.save()
+                    return self.get_or_create_specific_price(price)
             price_data = self._api.get('specific_prices', options={'schema': 'blank'})
-            price_data['specific_price']['id_product'] = price.combination_id.product_id.ps_id
-            price_data['specific_price']['id_product_attribute'] = price.combination_id.ps_id
+            price_data['specific_price']['id_product'] = price.product_id.ps_id
+            #price_data['specific_price']['id_product_attribute'] = price.combination_id.ps_id
+            price_data['specific_price']['id_product_attribute'] = 0
             price_data['specific_price']['id_shop'] = 0
             price_data['specific_price']['id_cart'] = 0
             price_data['specific_price']['id_currency'] = 0
@@ -407,6 +456,10 @@ class ControllerPrestashop(object):
                 stock.save()
                 return self.get_or_create_stock(stock)
 
+        elif stock.combination_id.discontinued or not stock.combination_id.product_id.visible_web:
+            stock.updated = False
+            stock.save()
+            return False
         else:
             response = self._api.get('stock_availables', None,
                 {'filter[id_product_attribute]': stock.combination_id.ps_id, 'limit': '1'})
@@ -415,6 +468,14 @@ class ControllerPrestashop(object):
                 stock.ps_id = int(response['stock_availables']['stock_available']['attrs']['id'])
                 stock.save()
                 return self.get_or_create_stock(stock)
+
+            #No es pot crear stock_avaiables
+            stock.combination_id.ps_id = 0
+            stock.combination_id.updated = True
+            stock.combination_id.save()
+            stock.save()
+            return False
+
             stock_data = self._api.get('stock_availables', options={'schema': 'blank'})
             stock_data['stock_available']['id_product'] = stock.combination_id.product_id.ps_id
             stock_data['stock_available']['id_product_attribute'] = stock.combination_id.ps_id

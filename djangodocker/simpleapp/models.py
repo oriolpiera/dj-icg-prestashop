@@ -265,14 +265,12 @@ class Product(models.Model):
 
     def compareOldWith(self, man):
         #Example amb control amb idiomes
-        print(man)
         changed = False
         man['manufacturer'].pop('link_rewrite', None)
         if self.icg_name != mytools.get_ps_language(man['manufacturer']['name']):
             man['manufacturer']['name'] = mytools.get_ps_language(
                 man['manufacturer']['name'], self.icg_name)
             changed = True
-        print(man)
         return changed, man
 
     def updateFromICG(self):
@@ -289,6 +287,7 @@ class Product(models.Model):
             if self.manufacturer == None or self.manufacturer.icg_id != row[13] and row[13]:
                 man = Manufacturer.objects.get_or_create(icg_id = row[13], icg_name = row[14])
                 self.manufacturer = man[0]
+            self.visible_web = True if row[12] == 'T' else False
             self.updated = True
             self.save()
         return True
@@ -567,6 +566,7 @@ class ProductOptionValue(models.Model):
 class SpecificPrice(models.Model):
     ps_id = models.IntegerField(default=0)
     ps_reduction = models.FloatField(default=0)
+    ps_combination_id = models.IntegerField(default=0)
     combination_id = models.OneToOneField('Combination', on_delete=models.CASCADE, null=True)
     product_id = models.ForeignKey('Product', on_delete=models.CASCADE, null=True)
     dto_percent = models.IntegerField(default=0)
@@ -608,6 +608,8 @@ class SpecificPrice(models.Model):
         return result
 
     def updateFromICG(self):
+        if not self.product_id:
+            self.product_id = self.combination_id.product_id
         ms = mssql.MSSQL()
         result = ms.getDiscountData(constants.URLBASE, self.product_id.icg_id)
         if isinstance(result, bool):

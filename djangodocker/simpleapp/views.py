@@ -40,6 +40,6 @@ class ProductView(TemplateView):
         elif tipus == "stock":
             c.saveNewStocks(None, data)
 
-        logger.error("[" + str(datetime.now()) + "] Ens arribat una request PHP tipus: " + tipus + "\n" + data)
+        logger.info("[" + str(datetime.now()) + "] Ens arribat una request PHP tipus: " + tipus + "\n" + data)
         return HttpResponse('Created', status=201)
 

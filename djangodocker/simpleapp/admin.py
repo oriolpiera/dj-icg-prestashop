@@ -2,7 +2,7 @@ from django.contrib import admin
 
 # Register your models here.
 from .models import *
-from . import prestashop
+from . import prestashop, controller
 
 class ManufacturerAdmin(admin.ModelAdmin):
     actions = ["baixar_de_ICG", "baixar_de_PS", "pujar_cap_a_PS"]
@@ -53,7 +53,7 @@ class CategoryAdmin(admin.ModelAdmin):
 admin.site.register(Category, CategoryAdmin)
 
 class CombinationAdmin(admin.ModelAdmin):
-    actions = ["baixar_de_ICG", "baixar_de_PS", "pujar_cap_a_PS"]
+    actions = ["baixar_de_ICG", "baixar_de_PS", "pujar_cap_a_PS", "createStock"]
     fields = ['ps_id','icg_talla','icg_color','product_id','ean13','discontinued', 'updated']
     list_display = ['ps_id', 'product_id','icg_talla','icg_color','ean13','discontinued', 'product_icg_modified_date', 'created_date', 'modified_date', 'updated']
     search_fields = ['product_id__icg_reference', 'product_id__icg_name','icg_talla','icg_color','ean13']
@@ -81,12 +81,18 @@ class CombinationAdmin(admin.ModelAdmin):
         for obj in queryset:
             c.get_or_create_combination(obj)
 
+    def createStock(self, request, queryset):
+        c = controller.ControllerICGProducts()
+        for obj in queryset:
+            stock = c.get_create_or_update('Stock', {'combination_id': obj},{})
+
 admin.site.register(Combination, CombinationAdmin)
 
 
 class PriceAdmin(admin.ModelAdmin):
     actions = ["baixar_de_ICG", "baixar_de_PS", "pujar_cap_a_PS"]
-    fields = ['ps_id', 'combination_id', 'pvp_siva','iva','pvp', 'updated']
+    fields = ['ps_id', 'combination_id', 'pvp_siva','iva','pvp','icg_modified_date',  'created_date', 'modified_date', 'updated']
+    readonly_fields = ['combination_id', 'icg_modified_date', 'modified_date', 'created_date']
     list_display = ['ps_id', 'combination_id','pvp_siva','iva','pvp', 'discontinued', 'icg_modified_date',  'created_date', 'modified_date', 'updated']
     search_fields = ['combination_id__product_id__icg_reference', 'combination_id__icg_talla', 'combination_id__icg_color']
     list_filter = ['updated', 'icg_modified_date', 'iva']
@@ -121,6 +127,7 @@ class StockAdmin(admin.ModelAdmin):
     actions = ["baixar_de_ICG", "baixar_de_PS", "pujar_cap_a_PS"]
     fields = ['ps_id', 'combination_id', 'icg_stock', 'ps_stock', 'icg_modified_date', 'updated']
     list_display = ['ps_id', 'combination_id', 'product_icg_id', 'icg_stock', 'ps_stock', 'discontinued', 'icg_modified_date', 'created_date', 'modified_date', 'updated']
+    readonly_fields = ['combination_id', 'icg_modified_date']
     search_fields = ['combination_id__product_id__icg_reference', 'combination_id__icg_talla', 'combination_id__icg_color', 'icg_modified_date']
     list_filter = ['updated', 'icg_modified_date', 'modified_date']
 
@@ -202,7 +209,7 @@ admin.site.register(ProductOptionValue, ProductOptionValueAdmin)
 class SpecificPriceAdmin(admin.ModelAdmin):
     actions = ["baixar_de_ICG", "baixar_de_PS", "pujar_cap_a_PS"]
     fiels = ['ps_id', 'product_id', 'combination_id', 'dto_percent', 'icg_modified_date']
-    list_display = ['ps_id', 'product_id', 'dto_percent', 'icg_modified_date', 'created_date', 'modified_date', 'updated']
+    list_display = ['ps_id', 'product_id','combination_id','ps_combination_id', 'dto_percent','ps_reduction', 'icg_modified_date', 'created_date', 'modified_date', 'updated']
     search_fields = ['product_id__icg_name', 'ps_id']
     list_filter = ['updated', 'dto_percent', 'icg_modified_date']
 
