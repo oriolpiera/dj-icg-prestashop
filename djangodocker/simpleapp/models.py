@@ -150,10 +150,11 @@ class Product(models.Model):
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
     visible_web = models.BooleanField(default=True)
-    fields_updated = models.CharField(max_length=200, default="{}")
+    fields_updated = models.CharField(max_length=300, default="{}")
     ps_category_default = models.ForeignKey('Category', on_delete=models.SET_NULL,
         null=True, related_name='default_category')
     ps_category_list = models.ManyToManyField('Category', related_name='cat_list')
+    #iva_id = models.IntegerField(blank=True, null=True, default=0)
 
     class Meta:
         verbose_name = 'product'
@@ -339,7 +340,7 @@ class Combination(models.Model):
     def compareICG(self, comb):
         result = {}
         if self.ean13 != comb.ean13:
-            result['ean13'] = comb.ean13.strip()
+            result['ean13'] = str(comb.ean13).strip()
         if self.discontinued != comb.discontinued:
             result['discontinued'] = comb.discontinued
         return result
@@ -369,7 +370,7 @@ class Stock(models.Model):
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=False)
-    fields_updated = models.CharField(max_length=200, default="{}")
+    fields_updated = models.CharField(max_length=300, default="{}")
 
     class Meta:
         verbose_name = 'stock'
@@ -415,7 +416,7 @@ class Price(models.Model):
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
-    fields_updated = models.CharField(max_length=200, default="{}")
+    fields_updated = models.CharField(max_length=300, default="{}")
 
     class Meta:
         verbose_name = 'price'
@@ -576,7 +577,7 @@ class SpecificPrice(models.Model):
     modified_date = models.DateTimeField(auto_now=True,blank=True, null=True)
     icg_modified_date = models.DateTimeField(blank=True, null=True)
     updated = models.BooleanField(default=True)
-    fields_updated = models.CharField(max_length=200, default="{}")
+    fields_updated = models.CharField(max_length=300, default="{}")
 
     class Meta:
         verbose_name = 'specific_price'

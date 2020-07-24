@@ -226,7 +226,10 @@ class ControllerPrestashop(object):
             except prestapyt.prestapyt.PrestaShopWebServiceError as e:
                 #No exist in PS anymore. Recreate
                 if comb.discontinued:
-                    raise prestapyt.prestapyt.PrestaShopWebServiceError(e)
+                    comb.ps_id = 0
+                    comb.updated = False
+                    comb.save()
+                    return response
                 comb.ps_id = 0
                 comb.save()
                 return self.get_or_create_combination(comb)
@@ -534,14 +537,15 @@ class ControllerPrestashop(object):
     def carregaNous(self):
         ps_exceptions = []
         ps_man = []
-        updated_manufacturers = models.Manufacturer.objects.filter(updated = True)
+        updated_manufacturers = models.Manufacturer.objects.filter(updated = True).exclude(icg_name__isnull=True).exclude(icg_name__exact='')
         for man in updated_manufacturers:
             try:
                 m = self.get_or_create_manufacturer(man)
                 if m:
                     ps_man.append(m['manufacturer']['id'])
-            except:
+            except Exception as e:
                 print("Exception with : " + str(man))
+                print(e)
                 ps_exceptions.append(man)
                 continue
 
@@ -588,8 +592,10 @@ class ControllerPrestashop(object):
                 c = self.get_or_create_combination(comb)
                 if c:
                     ps_comb.append(c['combination']['id'])
-            except:
+            except Exception as e:
                 print("Exception with : " + str(comb))
+                print(type(e))
+                print(e)
                 ps_exceptions.append(comb)
                 continue
 
