@@ -19,7 +19,7 @@ class MSSQL(object):
         if data:
             filename = io.StringIO(data, newline=None)
         data = pd.read_csv(filename, delimiter=";", encoding="utf-8", header=None,
-            dtype={0: 'int', 1: 'object', 2: 'object', 3: 'object', 4: 'object', 5: 'object' }, keep_default_na=False)
+            dtype={0: 'int', 1: 'object', 2: 'object', 3: 'object', 4: 'object', 5: 'string' }, keep_default_na=False)
         return data
 
 

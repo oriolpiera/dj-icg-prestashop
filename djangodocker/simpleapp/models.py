@@ -154,7 +154,7 @@ class Product(models.Model):
     ps_category_default = models.ForeignKey('Category', on_delete=models.SET_NULL,
         null=True, related_name='default_category')
     ps_category_list = models.ManyToManyField('Category', related_name='cat_list')
-    #iva_id = models.IntegerField(blank=True, null=True, default=0)
+    iva = models.IntegerField(blank=True, null=True, default=21)
 
     class Meta:
         verbose_name = 'product'
@@ -244,6 +244,8 @@ class Product(models.Model):
                 result['icg_name'] = product.icg_name
             if self.visible_web != product.visible_web:
                 result['visible_web'] = "0"
+            if self.iva != product.iva:
+                result['iva'] = product.iva
         elif isinstance(product, dict):
             modified = False
             if self.icg_reference and (str(self.icg_reference) != str(product['product']['reference'])):
@@ -259,6 +261,12 @@ class Product(models.Model):
                 modified = True
             if self.visible_web != True if product['product']['active'] == 1 else False:
                 product['product']['active'] = 1 if self.visible_web else 0
+                modified = True
+            if self.iva == 0:
+                self.updateIVA()
+            id_tax = constants.TAX_ID.get(self.iva)
+            if id_tax != product['product']['id_tax_rules_group']:
+                product['product']['id_tax_rules_group'] = id_tax
                 modified = True
             return modified, product
 
@@ -293,6 +301,10 @@ class Product(models.Model):
             self.save()
         return True
 
+    def updateIVA(self):
+        self.iva = Price.objects.filter(combination_id__product_id__pk=self.pk)[0].iva
+        self.save()
+        return True
 
 class Combination(models.Model):
     ps_id = models.IntegerField(blank=True, null=True) #previous ps_product_attribut
@@ -358,6 +370,11 @@ class Combination(models.Model):
             self.icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
             self.updated = True
             self.save()
+            if len(Price.objects.filter(combination_id__pk=self.pk)) == 0:
+                p = Price.objects.get_or_create(combination_id = self)
+                if p[1]:
+                    p[0].updateFromICG()
+
         return True
 
 class Stock(models.Model):
@@ -458,8 +475,18 @@ class Price(models.Model):
             self.pvp = row[4]
             self.preu_oferta = float(row[4]) - float(row[7])
             self.preu_oferta = row[10]
+            if self.combination_id.product_id.iva == 0:
+                self.combination_id.product_id.iva = row[9]
+                self.combination_id.product_id.updated = True
+                self.combination_id.product_id.save()
             self.updated = True
             self.save()
+            if row[5] and len(SpecificPrice.objects.filter(combination_id__pk=self.combination_id.pk)) == 0:
+                sp = SpecificPrice.objects.get_or_create(combination_id = self.combination_id,
+                    product_id = self.combination_id.product_id)
+                if sp[1]:
+                    sp[0].updateFromICG()
+
         return True
 
 class ProductOption(models.Model):

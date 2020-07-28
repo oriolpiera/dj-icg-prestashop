@@ -173,7 +173,10 @@ class ControllerPrestashop(object):
             p_data['product']['price'] = 0
 
             p_data['product']['position_in_category'] = 0
-            p_data['product']['id_tax_rules_group'] = 1
+            if not product.iva:
+                product.updateIVA()
+            id_tax = constants.TAX_ID.get(product.iva)
+            p_data['product']['id_tax_rules_group'] = id_tax
             p_data['product']['minimal_quantity'] = 1
             p_data['product']['state'] = 1
             #TODO: revisar active

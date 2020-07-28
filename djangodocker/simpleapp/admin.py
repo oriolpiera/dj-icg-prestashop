@@ -208,9 +208,10 @@ admin.site.register(ProductOptionValue, ProductOptionValueAdmin)
 
 class SpecificPriceAdmin(admin.ModelAdmin):
     actions = ["baixar_de_ICG", "baixar_de_PS", "pujar_cap_a_PS"]
-    fiels = ['ps_id', 'product_id', 'combination_id', 'dto_percent', 'icg_modified_date']
+    fiels = ['ps_id', 'product_id', 'combination_id', 'dto_percent', 'icg_modified_date', 'modified_date']
+    readonly_fields = ['combination_id', 'icg_modified_date', 'modified_date']
     list_display = ['ps_id', 'product_id','combination_id','ps_combination_id', 'dto_percent','ps_reduction', 'icg_modified_date', 'created_date', 'modified_date', 'updated']
-    search_fields = ['product_id__icg_name', 'ps_id']
+    search_fields = ['combination_id__product_id__icg_reference', 'product_id__icg_name', 'ps_id']
     list_filter = ['updated', 'dto_percent', 'icg_modified_date']
 
     def baixar_de_ICG(self, request, queryset):
@@ -234,13 +235,13 @@ admin.site.register(SpecificPrice, SpecificPriceAdmin)
 
 class ProductesPrestashop(admin.ModelAdmin):
     actions = ["baixar_de_ICG", "baixar_de_PS", "pujar_cap_a_PS"]
-    fields = ['icg_id', 'icg_reference', 'icg_name', 'ps_id', 'ps_name', 'modified_date',
+    fields = ['icg_id', 'icg_reference', 'icg_name', 'ps_id', 'ps_name', 'iva', 'modified_date',
             'icg_modified_date', 'visible_web', 'manufacturer', 'manufacturer_name', 'updated']
     readonly_fields = ['manufacturer_name', 'icg_modified_date', 'modified_date']
-    list_display = ['icg_id', 'icg_reference', 'icg_name', 'ps_id', 'ps_name', 'visible_web',
+    list_display = ['icg_id', 'icg_reference', 'icg_name', 'ps_id', 'ps_name', 'iva', 'visible_web',
             'manufacturer_name', 'created_date', 'modified_date', 'icg_modified_date', 'updated']
     search_fields = ['ps_id', 'icg_reference', 'icg_name', 'ps_name', 'manufacturer__icg_name']
-    list_filter = ['visible_web', 'updated', 'manufacturer__icg_name']
+    list_filter = ['visible_web', 'updated', 'manufacturer__icg_name', 'iva']
 
     def manufacturer_name(self, instance):
         if instance.manufacturer:

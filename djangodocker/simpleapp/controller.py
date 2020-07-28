@@ -69,6 +69,9 @@ class ControllerICGProducts(object):
                 'icg_color': icg_color, 'icg_talla': icg_talla},
                 {'discontinued': discontinued, 'ean13': ean13})
 
+            price = self.get_create_or_update('Price', {'combination_id': comb}, {})
+            stock = self.get_create_or_update('Stock', {'combination_id': comb}, {})
+            spec_price = self.get_create_or_update('SpecificPrice', {'combination_id': comb},{})
 
     def saveNewPrices(self, url_base=None, data=None):
         if not url_base:
