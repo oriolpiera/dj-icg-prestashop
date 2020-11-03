@@ -20,5 +20,5 @@ class Command(BaseCommand):
             logger.info("[" + str(datetime.now()) + "] Objects updated to PS " +  str(result))
         if len(result['errors']) > 0:
             logger.error("[" + str(datetime.now()) + "] Objects with error " + str(result['errors']))
-        logger.info("[" + str(datetime.now()) + "] UpdateToPS ended")
+        #logger.info("[" + str(datetime.now()) + "] UpdateToPS ended")
         #TODO: In try and if except, send email

@@ -8,7 +8,7 @@ from . import controller, constants, mytools
 
 class ControllerPrestashop(object):
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("django")
         self._api =  prestapyt.PrestaShopWebServiceDict(
             constants.PS_URL, constants.PS_KEY, debug=True, verbose=True)
 
@@ -147,6 +147,17 @@ class ControllerPrestashop(object):
                 if not product.visible_web:
                     new_prod_ps['product']['active'] = 0
                     new_prod_ps['product']['id_category_default'] = constants.NO_VISIBLE_CATEGORY
+                else:
+                    new_prod_ps['product']['active'] = 1
+                    new_prod_ps['product']['available_for_order'] = 1
+                    try:
+                        if isinstance(response['product']['associations']['categories']['category'], list):
+                            new_prod_ps['product']['id_category_default'] = response['product']['associations']['categories']['category'][0]['id']
+                        else:
+                            new_prod_ps['product']['id_category_default'] = response['product']['associations']['categories']['category']['id']
+                    except KeyError as e:
+                        pass
+
                 new_prod_ps['product'].pop('manufacturer_name', None)
                 new_prod_ps['product'].pop('quantity', None)
                 new_prod_ps['product'].pop('position_in_category', None)
@@ -182,7 +193,7 @@ class ControllerPrestashop(object):
             #TODO: revisar active
             p_data['product']['active'] = 0
             p_data['product']['id_shop_default'] = 1
-            p_data['product']['avaiable_for_order'] = 1
+            p_data['product']['available_for_order'] = 1
             p_data['product']['show_price'] = 1
             p_data['product']['name']['language'] = self.update_language(
                 p_data['product']['name']['language'], product.icg_name)
@@ -269,6 +280,13 @@ class ControllerPrestashop(object):
             color = self.get_or_create_product_option_value_django(po_color, comb.icg_color)
             ps_color = self.get_or_create_product_option_value(color)
 
+            #Really combination not exist?
+            comb_exist = self.combination_exist(comb.product_id.ps_id, ps_talla['product_option_value']['id'], ps_color['product_option_value']['id'])
+            if comb_exist:
+                comb.ps_id = int(comb_exist)
+                comb.save()
+                return self.get_or_create_combination(comb)
+
             p_data = self._api.get('combinations', options={'schema': 'blank'})
             p_data['combination']['id_product'] = comb.product_id.ps_id
             if comb.ean13 and comb.ean13 != ' ':
@@ -287,6 +305,22 @@ class ControllerPrestashop(object):
             response = self._api.get('combinations', resource_id=comb.ps_id)
 
         return response
+
+    def combination_exist(self, product_id, talla, color):
+        response = self._api.get('combinations', None,
+                    {'filter[id_product]': product_id})
+        #self.logger.info("Estem a combination_exist")
+        #self.logger.info(response)
+        #self.logger.info(response['combinations'])
+        if response['combinations'] and isinstance(response['combinations']['combination'], list):
+            for comb in response['combinations']['combination']:
+                combination = self._api.get('combinations', resource_id=comb['attrs']['id'])
+                if isinstance(combination['combination']['associations']['product_option_values']['product_option_value'], list):
+                    if ({'id': str(talla)} in
+                        combination['combination']['associations']['product_option_values']['product_option_value']) and ({'id': str(color)} in 
+                        combination['combination']['associations']['product_option_values']['product_option_value']):
+                        return comb['attrs']['id']
+        return False
 
     def get_or_create_price(self, price):
         c = self.get_or_create_combination(price.combination_id, price.pvp_siva)
@@ -393,8 +427,8 @@ class ControllerPrestashop(object):
                 response = self._api.get('specific_prices', resource_id=price.ps_id)
             except prestapyt.prestapyt.PrestaShopWebServiceError as e:
                 #No exist in PS anymore. Recreate
-                if price.dto_percent == 0:
-                    raise prestapyt.prestapyt.PrestaShopWebServiceError(e)
+                #if price.dto_percent == 0:
+                #    raise prestapyt.prestapyt.PrestaShopWebServiceError(e)
                 price.ps_id = 0
                 price.save()
                 return self.get_or_create_specific_price(price)
@@ -409,7 +443,15 @@ class ControllerPrestashop(object):
                     new_price_ps['specific_price']['id'] = str(price.ps_id)
                     response_edit = self._api.edit('specific_prices', new_price_ps)
                     self.logger.info("Descompte modificat: %s", str(new_price_ps))
-        elif not price.product_id.visible_web:
+        elif not price.product_id:
+            price.updated = False
+            price.save()
+            return False
+        elif not price.product_id.ps_id:
+            price.updated = False
+            price.save()
+            return False
+        elif not price.dto_percent:
             price.updated = False
             price.save()
             return False
@@ -462,7 +504,7 @@ class ControllerPrestashop(object):
                 stock.save()
                 return self.get_or_create_stock(stock)
 
-        elif stock.combination_id.discontinued or not stock.combination_id.product_id.visible_web:
+        elif stock.combination_id.discontinued: #or not stock.combination_id.product_id.visible_web:
             stock.updated = False
             stock.save()
             return False

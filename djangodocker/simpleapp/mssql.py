@@ -4,6 +4,8 @@ import os
 import requests
 from .constants  import *
 import io
+import logging
+from datetime import datetime
 
 class MSSQL(object):
     def newProducts(self, urlbase, data=None):
@@ -139,14 +141,17 @@ class MSSQL(object):
         else:
             return False
 
-    def getDiscountData(self, urlbase, icg_id):
+    def getDiscountData(self, urlbase, icg_id, icg_talla, icg_color):
+        #logger = logging.getLogger('command.updatetoprestashop')
+        #logger.info("Estic a getDiscountData")
         filename = 'getProductData.php'
         if urlbase:
             filename = urlbase + filename
         else:
             filename = os.path.join(os.path.dirname(__file__), filename)
 
-        sql = ("SELECT TOP 1 * FROM view_imp_preus WHERE Codarticulo = " + str(icg_id))
+        sql = ("SELECT TOP 1 * FROM view_imp_preus WHERE Codarticulo = " + str(icg_id) +
+            " and Talla = '" + str(icg_talla) + "' and Color ='" + str(icg_color) + "'")
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
 
         result = requests.post(filename, data = obj)

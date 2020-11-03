@@ -32,7 +32,7 @@ class ControllerICGProducts(object):
         except ObjectDoesNotExist:
             m_new.updated = True
             m_new.save()
-            self.logger.info("Objecte creada %s", str(dj_object))
+            self.logger.info("Objecte creada %s:%d" % (str(dj_object), m_new.pk))
             return m_new
         except MultipleObjectsReturned:
             self.logger.error("Objecte torna més d'un: %s",
@@ -69,9 +69,21 @@ class ControllerICGProducts(object):
                 'icg_color': icg_color, 'icg_talla': icg_talla},
                 {'discontinued': discontinued, 'ean13': ean13})
 
-            price = self.get_create_or_update('Price', {'combination_id': comb}, {})
-            stock = self.get_create_or_update('Stock', {'combination_id': comb}, {})
-            spec_price = self.get_create_or_update('SpecificPrice', {'combination_id': comb},{})
+            price_exist = models.Price.objects.filter(combination_id = comb)
+            if not price_exist:
+                price = self.get_create_or_update('Price', {'combination_id': comb}, {})
+                price.updateFromICG()
+
+            stock_exist = models.Stock.objects.filter(combination_id = comb)
+            if not stock_exist:
+                stock = self.get_create_or_update('Stock', {'combination_id': comb}, {})
+                stock.updateFromICG()
+
+            sp_exist = models.SpecificPrice.objects.filter(combination_id = comb, product_id = prod)
+            if not sp_exist:
+                spec_price = self.get_create_or_update('SpecificPrice',
+                    {'combination_id': comb, 'product_id': prod},{})
+                spec_price.updateFromICG()
 
     def saveNewPrices(self, url_base=None, data=None):
         if not url_base:
@@ -99,6 +111,7 @@ class ControllerICGProducts(object):
             if dto_percent:
                 spec_price = self.get_create_or_update('SpecificPrice', {'combination_id': comb},
                     {'dto_percent': dto_percent, 'icg_modified_date': icg_modified_date, 'product_id': prod})
+                spec_price.updateFromICG()
 
 
     def saveNewStocks(self, url_base=None, data=None):
@@ -122,7 +135,8 @@ class ControllerICGProducts(object):
 
     def updateDataFromICG(self):
         ps_prod = []
-        updated_products = models.Product.objects.filter(icg_reference = '')
+        #updated_products = models.Product.objects.filter(icg_reference = '')
+        updated_products = models.Product.objects.filter(updated = True)
         for prod in updated_products:
             prod.updateFromICG()
             ps_prod.append(prod.icg_reference)
@@ -211,9 +225,11 @@ class ControllerICGProducts(object):
     def updateSpecificPriceFromICG(self, sp):
         ms = mssql.MSSQL()
         if sp.product_id:
-            result = ms.getDiscountData(constants.URLBASE, sp.product_id.icg_id)
+            result = ms.getDiscountData(constants.URLBASE, sp.product_id.icg_id,
+                sp.combination_id.icg_talla, sp.combination_id.icg_color)
         else:
-            result = ms.getDiscountData(constants.URLBASE, sp.combination_id.product_id.icg_id)
+            result = ms.getDiscountData(constants.URLBASE, sp.combination_id.product_id.icg_id,
+                sp.combination_id.icg_talla, sp.combination_id.icg_color)
         if isinstance(result, bool):
             return False
         for index,row in result.iterrows():

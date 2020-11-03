@@ -228,7 +228,7 @@ class Product(models.Model):
         if product.manufacturer and  (self.manufacturer != product.manufacturer):
             result['manufacturer'] = product.manufacturer
         if self.visible_web != product.visible_web:
-            result['visible_web'] = "0"
+            result['visible_web'] = 0 if product.visible_web == 'F' else 1
         if product.icg_modified_date and (self.icg_modified_date != product.icg_modified_date):
             result['icg_modified_date'] = product.icg_modified_date
         return result
@@ -267,6 +267,9 @@ class Product(models.Model):
             id_tax = constants.TAX_ID.get(self.iva)
             if id_tax != product['product']['id_tax_rules_group']:
                 product['product']['id_tax_rules_group'] = id_tax
+                modified = True
+            if product['product']['available_for_order'] == 0:
+                product['product']['available_for_order'] = 1
                 modified = True
             return modified, product
 
@@ -639,7 +642,8 @@ class SpecificPrice(models.Model):
         if not self.product_id:
             self.product_id = self.combination_id.product_id
         ms = mssql.MSSQL()
-        result = ms.getDiscountData(constants.URLBASE, self.product_id.icg_id)
+        result = ms.getDiscountData(constants.URLBASE, self.product_id.icg_id,
+                self.combination_id.icg_talla, self.combination_id.icg_color)
         if isinstance(result, bool):
             return False
         for index,row in result.iterrows():
