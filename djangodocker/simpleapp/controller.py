@@ -28,6 +28,9 @@ class ControllerICGProducts(object):
                 updated['modified_date'] = now()
                 dj_object.objects.filter(pk=m_old.pk).update(**updated)
                 self.logger.info("Objecte '%s' modificada: %s", str(dj_object), str(updated))
+            if m_old.ps_id == 0:
+                m_old.updated=True
+                m_old.save()
             return m_old
         except ObjectDoesNotExist:
             m_new.updated = True
@@ -44,6 +47,7 @@ class ControllerICGProducts(object):
             url_base = self._url_base
         ms = mssql.MSSQL()
         np  = ms.newProducts(url_base, data)
+        ean13 = ''
         for index,row in np.iterrows():
             icg_id = row[0]
             icg_reference = row[1]

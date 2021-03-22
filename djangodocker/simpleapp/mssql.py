@@ -59,6 +59,8 @@ class MSSQL(object):
 
 
     def getProductData(self, urlbase, icg_reference, icg_id=None):
+        logger = logging.getLogger('command.updatetoprestashop')
+        logger.info("Estic a getProductData")
         filename = 'getProductData.php'
         if urlbase:
             filename = urlbase + filename
@@ -69,18 +71,25 @@ class MSSQL(object):
         if icg_id:
             sql = "SELECT TOP 1 * FROM view_imp_articles WHERE CODARTICULO = " + str(icg_id)
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
-
-        result = requests.post(filename, data = obj)
-
+        logger.info("[" + str(datetime.now()) + "] SQL: " +  str(sql))
+        #logger.info(obj)
+        #logger.info(filename)
+        result = requests.post(filename, data = obj, verify=False)
+        logger.info("[" + str(datetime.now()) + "] Result of query " +  str(result))
+        #logger.error(result.request.body)
+        #logger.error(result.request.headers)
         if result.status_code == 200 and result.content:
             p = result.content.decode('utf8')
             data = pd.read_csv(io.StringIO(p), delimiter=";", encoding="utf-8", header=None,
                 dtype={0: 'int', 1: 'object', 2: 'object', 3: 'object',4: 'object', 5: 'object' }, keep_default_na=False)
             return data
         else:
+            #logger.error("[" + str(datetime.now()) + "getProductData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
+            logger.info("[" + str(datetime.now()) + "getProductData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
             return False
 
     def getCombinationData(self, urlbase, icg_reference, icg_talla, icg_color):
+        logger = logging.getLogger('command.updatetoprestashop')
         filename = 'getProductData.php'
         if urlbase:
             filename = urlbase + filename
@@ -91,7 +100,7 @@ class MSSQL(object):
             "' and TALLA = '" + str(icg_talla) + "' and COLOR ='" + str(icg_color) + "'")
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
 
-        result = requests.post(filename, data = obj)
+        result = requests.post(filename, data = obj, verify=False)
 
         if result.status_code == 200 and result.content:
             p = result.content.decode('utf8')
@@ -99,9 +108,12 @@ class MSSQL(object):
                 dtype={0: 'int', 1: 'object', 2: 'object', 3: 'object', 4: 'object', 5: 'object' }, keep_default_na=False)
             return data
         else:
+            logger.info("[" + str(datetime.now()) + "] getCombinationData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
+            #logger.error("[" + str(datetime.now()) + "] getCombinationData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
             return False
 
     def getPriceData(self, urlbase, icg_id, icg_talla, icg_color):
+        logger = logging.getLogger('command.updatetoprestashop')
         filename = 'getProductData.php'
         if urlbase:
             filename = urlbase + filename
@@ -112,16 +124,21 @@ class MSSQL(object):
             " and Talla = '" + str(icg_talla) + "' and Color ='" + str(icg_color) + "'")
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
 
-        result = requests.post(filename, data = obj)
+        result = requests.post(filename, data = obj, verify=False)
+        logger.info("[" + str(datetime.now()) + "] SQL: " +  str(sql))
+        #logger.error("[" + str(datetime.now()) + "] Result of query " +  str(result))
         if result.status_code == 200 and result.content:
             p = result.content.decode('utf8')
             data = pd.read_csv(io.StringIO(p), delimiter=";", encoding="utf-8", header=None,
                 dtype={0: 'int' }, keep_default_na=False)
             return data
         else:
+            #logger.error("[" + str(datetime.now()) + "] getPriceData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
+            logger.info("[" + str(datetime.now()) + "] getPriceData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
             return False
 
     def getStockData(self, urlbase, icg_id, icg_talla, icg_color):
+        logger = logging.getLogger('command.updatetoprestashop')
         filename = 'getProductData.php'
         if urlbase:
             filename = urlbase + filename
@@ -131,7 +148,7 @@ class MSSQL(object):
         sql = ("SELECT TOP 1 * FROM view_imp_stocks WHERE Codalmacen = '01' and Codarticulo = " + str(icg_id) +
             " and Talla = '" + str(icg_talla) + "' and Color ='" + str(icg_color) + "'")
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
-        result = requests.post(filename, data = obj)
+        result = requests.post(filename, data = obj, verify=False)
 
         if result.status_code == 200 and result.content:
             p = result.content.decode('utf8')
@@ -139,10 +156,12 @@ class MSSQL(object):
                 dtype={0: 'int'}, keep_default_na=False)
             return data
         else:
+            #logger.error("[" + str(datetime.now()) + "] getStockData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
+            logger.info("[" + str(datetime.now()) + "] getStockData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
             return False
 
     def getDiscountData(self, urlbase, icg_id, icg_talla, icg_color):
-        #logger = logging.getLogger('command.updatetoprestashop')
+        logger = logging.getLogger('command.updatetoprestashop')
         #logger.info("Estic a getDiscountData")
         filename = 'getProductData.php'
         if urlbase:
@@ -154,7 +173,9 @@ class MSSQL(object):
             " and Talla = '" + str(icg_talla) + "' and Color ='" + str(icg_color) + "'")
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
 
-        result = requests.post(filename, data = obj)
+        #logger.info("[" + str(datetime.now()) + "] SQL: " +  str(sql))
+        result = requests.post(filename, data = obj, verify=False)
+        #logger.error("[" + str(datetime.now()) + "] Result of query " +  str(result))
 
         if result.status_code == 200 and result.content:
             p = result.content.decode('utf8')
@@ -162,9 +183,12 @@ class MSSQL(object):
                 dtype={0: 'int' }, keep_default_na=False)
             return data
         else:
+            #logger.error("[" + str(datetime.now()) + "] getDiscountData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
+            logger.info("[" + str(datetime.now()) + "] getDiscountData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
             return False
 
     def getManufacturerData(self, urlbase, ps_name):
+        logger = logging.getLogger('command.updatetoprestashop')
         filename = 'getProductData.php'
         if urlbase:
             filename = urlbase + filename
@@ -174,7 +198,7 @@ class MSSQL(object):
         sql = "SELECT TOP 1 * FROM view_imp_articles WHERE Descripcion_Marca = '" + ps_name + "'"
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
 
-        result = requests.post(filename, data = obj)
+        result = requests.post(filename, data = obj, verify=False)
 
         if result.status_code == 200 and result.content:
             p = result.content.decode('utf8')
@@ -182,6 +206,8 @@ class MSSQL(object):
                 dtype={0: 'int', 1: 'object', 4: 'object', 5: 'object' }, keep_default_na=False)
             return data
         else:
+            #logger.error("[" + str(datetime.now()) + "] getManufacturerData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
+            logger.info("[" + str(datetime.now()) + "] getManufacturerData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
             return False
 
 # vim: et ts=4 sw=4

@@ -264,8 +264,9 @@ class ControllerPrestashop(object):
                     #response = self._api.edit('combinations', comb.ps_id, new_comb_ps)
                     response_edit = self._api.edit('combinations', new_comb_ps)
                     self.logger.info("Combinacio modificada: %s", str(new_comb_ps))
-
-        elif comb.discontinued or not comb.product_id.visible_web:
+        #We need to create combinations even when the product is not visible web
+        elif comb.discontinued or comb.product_id.ps_id == 0:
+        #elif comb.discontinued:
             comb.updated = False
             comb.save()
             return response
@@ -349,11 +350,10 @@ class ControllerPrestashop(object):
                 po.ps_id = 0
                 po.save()
                 return self.get_or_create_product_options(po)
-
-        elif not po.product_id.visible_web:
-            po.updated = False
-            po.save()
-            return False
+        #elif not po.product_id.visible_web:
+        #    po.updated = False
+        #    po.save()
+        #    return False
         else:
             ps_name = str(po.product_id.ps_id) + "_" + po.ps_icg_type
             response = self._api.get('product_options', None,
@@ -504,7 +504,7 @@ class ControllerPrestashop(object):
                 stock.save()
                 return self.get_or_create_stock(stock)
 
-        elif stock.combination_id.discontinued: #or not stock.combination_id.product_id.visible_web:
+        elif stock.combination_id.discontinued or not stock.combination_id.ps_id: #or not stock.combination_id.product_id.visible_web:
             stock.updated = False
             stock.save()
             return False
