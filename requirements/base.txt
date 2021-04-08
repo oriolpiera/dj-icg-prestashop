@@ -1,5 +1,5 @@
 #mysqlclient==1.3.12
-Django==2.2.12
+Django==2.2.20
 git+https://github.com/oriolpiera/prestapyt.git
 pandas
 psycopg2
