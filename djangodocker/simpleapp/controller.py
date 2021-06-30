@@ -139,6 +139,7 @@ class ControllerICGProducts(object):
 
     def updateDataFromICG(self):
         ps_prod = []
+        #return False, {'ps_prod': [], 'ps_comb': []}
         #updated_products = models.Product.objects.filter(icg_reference = '')
         updated_products = models.Product.objects.filter(updated = True)
         for prod in updated_products:

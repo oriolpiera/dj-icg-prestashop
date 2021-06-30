@@ -23,6 +23,14 @@ class ControllerPrestashop(object):
             language['value'] = name
         return language
 
+    def get_language(self, language):
+        if isinstance(language, list):
+            for lang in language:
+                value = lang['value']
+        else:
+            value = language['value']
+        return value
+
 
     def tryToUpdateProduct_fromPS(self, product):
         if product.icg_reference:
@@ -383,6 +391,12 @@ class ControllerPrestashop(object):
         if pov.ps_id:
             try:
                 response = self._api.get('product_option_values', resource_id=pov.ps_id)
+                if pov.ps_name != self.get_language(
+                        response['product_option_value']['name']['language']):
+                    pov.ps_name =  self.get_language(
+                            response['product_option_value']['name']['language'])
+                    pov.save()
+
             except prestapyt.prestapyt.PrestaShopWebServiceError:
                 #No exist in PS anymore. Recreate
                 pov.ps_id = 0

@@ -378,6 +378,14 @@ class Combination(models.Model):
                 if p[1]:
                     p[0].updateFromICG()
 
+            #Update names from ICG
+            if self.talla_id and self.talla_id.icg_name != self.icg_talla:
+                self.talla_id.icg_name =  self.icg_talla
+                self.talla_id.save()
+            if self.color_id and self.color_id.icg_name != self.icg_color:
+                self.color_id.icg_name = self.icg_color
+                self.color_id.save()
+
         return True
 
 class Stock(models.Model):
