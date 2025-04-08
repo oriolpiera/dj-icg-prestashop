@@ -5,9 +5,25 @@ import requests
 from .constants  import *
 import io
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
+import pyodbc
 
 class MSSQL(object):
+    cursor = None
+
+    def get_cursor(self):
+        if self.cursor:
+            return self.cursor
+        else:
+            conn = pyodbc.connect('Driver={/opt/microsoft/msodbcsql17/lib64/libmsodbcsql-17.8.so.1.1};'
+                              'Server=${MSSQL_SERVER}'
+                              'Database=${MSSQL_DATABASE};'
+                              'uid=${MSSQL_USER};'
+                              'pwd=${MSSQL_PASSWORD}')
+            self.cursor = conn.cursor()
+            return self.cursor
+
+
     def newProducts(self, urlbase, data=None):
         # Products line
         # CODARTICULO;Referencia;TALLA;COLOR;CODBARRAS;CODBARRAS2;DESCRIPCION;Tipo_impuesto;IVA;Codproveedor;Nombre_Proveedor;Fecha_Modificado;Visible_Web;Codigo_Marca;Descripcion_Marca;DESCATALOGADO
@@ -24,6 +40,16 @@ class MSSQL(object):
             dtype={0: 'int', 1: 'object', 2: 'object', 3: 'object', 4: 'object', 5: 'string' }, keep_default_na=False)
         return data
 
+    def newProductsDirecte(self):
+        # Prices line
+        # Tarifa;Codarticulo;Talla;Color;Pbruto_iva;Dto_porc;Pneto_iva;Dto_impote_iva;Iva;Pbruto_s_iva;Pneto_s_iva;Dto_importe_s_iva;Fecha_modificado
+        # 1;7498;***;***;135.45;30;94.815;40.635;21;111.94;78.36;33.58;"2020-01-20 16:55:35"
+        cursor = self.get_cursor()
+        d = datetime.today() - timedelta(days=1)
+        #d = datetime.today() - timedelta(days=1) - timedelta(days=15)
+        cursor.execute("select * from view_imp_articles where Fecha_Modificado > ?;", d)
+        rows = cursor.fetchall()
+        return rows
 
     def newPrices(self, urlbase, data=None):
         # Prices line
@@ -41,6 +67,17 @@ class MSSQL(object):
             dtype={1: 'int',2: 'object',3: 'object', 5: 'int'}, keep_default_na=False)
         return data
 
+    def newPricesDirecte(self):
+        # Prices line
+        # Tarifa;Codarticulo;Talla;Color;Pbruto_iva;Dto_porc;Pneto_iva;Dto_impote_iva;Iva;Pbruto_s_iva;Pneto_s_iva;Dto_importe_s_iva;Fecha_modificado
+        # 1;7498;***;***;135.45;30;94.815;40.635;21;111.94;78.36;33.58;"2020-01-20 16:55:35"
+        cursor = self.get_cursor()
+        d = datetime.today() - timedelta(hours=1)
+        #d = datetime.today() - timedelta(hours=1) - timedelta(days=15)
+        cursor.execute("select * from view_imp_preus where Fecha_Modificado > ?;", d)
+        rows = cursor.fetchall()
+        return rows
+
     def newStocks(self, urlbase, data=None):
         # Stock line
         # Codarticulo;Talla;Color;Codalmacen;Nombre_alm;Stock_real;Stock_Aservir;Stock_disponible;Fecha_Modificado
@@ -57,6 +94,17 @@ class MSSQL(object):
             dtype={1: 'object',2: 'object'}, keep_default_na=False)
         return dataframe
 
+    def newStocksDirecte(self):
+        # Stock line
+        # Codarticulo;Talla;Color;Codalmacen;Nombre_alm;Stock_real;Stock_Aservir;Stock_disponible;Fecha_Modificado
+        # 7498;***;***;01;"Pintor Fortuny";5;0;5;"2020-03-06 19:24:47"
+
+        cursor = self.get_cursor()
+        d = datetime.today() - timedelta(minutes=5)
+        #d = datetime.today() - timedelta(minutes=5)  - timedelta(days=15)
+        cursor.execute("select * from view_imp_stocks where Fecha_Modificado > ?;", d)
+        rows = cursor.fetchall()
+        return rows
 
     def getProductData(self, urlbase, icg_reference, icg_id=None):
         logger = logging.getLogger('command.updatetoprestashop')
@@ -72,12 +120,12 @@ class MSSQL(object):
             sql = "SELECT TOP 1 * FROM view_imp_articles WHERE CODARTICULO = " + str(icg_id)
         obj = {'token': MSSQL_TOKEN, 'sql': sql}
         logger.info("[" + str(datetime.now()) + "] SQL: " +  str(sql))
-        #logger.info(obj)
-        #logger.info(filename)
+        logger.info(obj)
+        logger.info(filename)
         result = requests.post(filename, data = obj, verify=False)
         logger.info("[" + str(datetime.now()) + "] Result of query " +  str(result))
-        #logger.error(result.request.body)
-        #logger.error(result.request.headers)
+        logger.error(result.request.body)
+        logger.error(result.request.headers)
         if result.status_code == 200 and result.content:
             p = result.content.decode('utf8')
             data = pd.read_csv(io.StringIO(p), delimiter=";", encoding="utf-8", header=None,
@@ -86,6 +134,23 @@ class MSSQL(object):
         else:
             #logger.error("[" + str(datetime.now()) + "getProductData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
             logger.info("[" + str(datetime.now()) + "getProductData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
+            return False
+
+    def getProductData(self, urlbase, icg_reference, icg_id=None):
+        logger = logging.getLogger('command.updatetoprestashop')
+        logger.info("Estic a getProductDataDirecte")
+        cursor = self.get_cursor()
+
+        sql = "SELECT TOP 1 * FROM view_imp_articles WHERE Referencia = '" + str(icg_reference) + "'"
+        if icg_id:
+            sql = "SELECT TOP 1 * FROM view_imp_articles WHERE CODARTICULO = " + str(icg_id)
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        if rows:
+            data = pd.DataFrame.from_records(rows)
+            return data
+        else:
+            logger.info("[" + str(datetime.now()) + "getProductData > Result of query " +  str(rows) + " : " + " Query: " + str(sql))
             return False
 
     def getCombinationData(self, urlbase, icg_reference, icg_talla, icg_color):
@@ -110,6 +175,21 @@ class MSSQL(object):
         else:
             logger.info("[" + str(datetime.now()) + "] getCombinationData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
             #logger.error("[" + str(datetime.now()) + "] getCombinationData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
+            return False
+
+    def getCombinationData(self, urlbase, icg_reference, icg_talla, icg_color):
+        logger = logging.getLogger('command.updatetoprestashop')
+        logger.info("Estic a getCombinationDataDirecte")
+        cursor = self.get_cursor()
+
+        sql = "SELECT TOP 1 * FROM view_imp_articles WHERE Referencia = '" + str(icg_reference) + "' and TALLA = '" + str(icg_talla) + "' and COLOR ='" + str(icg_color) + "'"
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        if rows:
+            data = pd.DataFrame.from_records(rows)
+            return data
+        else:
+            logger.info("[" + str(datetime.now()) + "getProductData > Result of query " +  str(rows) + " : " + " Query: " + str(sql))
             return False
 
     def getPriceData(self, urlbase, icg_id, icg_talla, icg_color):
@@ -137,6 +217,22 @@ class MSSQL(object):
             logger.info("[" + str(datetime.now()) + "] getPriceData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
             return False
 
+    def getPriceData(self, urlbase, icg_id, icg_talla, icg_color):
+        logger = logging.getLogger('command.updatetoprestashop')
+        logger.info("Estic a getPriceDataDirecte")
+        cursor = self.get_cursor()
+
+        sql = ("SELECT TOP 1 * FROM view_imp_preus WHERE Codarticulo = '" + str(icg_id) +
+            "' and TALLA = '" + str(icg_talla) + "' and COLOR ='" + str(icg_color) + "'")
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        if rows:
+            data = pd.DataFrame.from_records(rows)
+            return data
+        else:
+            logger.info("[" + str(datetime.now()) + "getProductData > Result of query " +  str(rows) + " : " + " Query: " + str(sql))
+            return False
+
     def getStockData(self, urlbase, icg_id, icg_talla, icg_color):
         logger = logging.getLogger('command.updatetoprestashop')
         filename = 'getProductData.php'
@@ -158,6 +254,22 @@ class MSSQL(object):
         else:
             #logger.error("[" + str(datetime.now()) + "] getStockData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
             logger.info("[" + str(datetime.now()) + "] getStockData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
+            return False
+
+    def getStockData(self, urlbase, icg_id, icg_talla, icg_color):
+        logger = logging.getLogger('command.updatetoprestashop')
+        logger.info("Estic a getStockDataDirecte")
+        cursor = self.get_cursor()
+
+        sql = ("SELECT TOP 1 * FROM view_imp_stocks WHERE Codalmacen = '01' and Codarticulo = '" + str(icg_id) +
+            "' and Talla = '" + str(icg_talla) + "' and Color ='" + str(icg_color) + "'")
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        if rows:
+            data = pd.DataFrame.from_records(rows)
+            return data
+        else:
+            logger.info("[" + str(datetime.now()) + "getProductData > Result of query " +  str(rows) + " : " + " Query: " + str(sql))
             return False
 
     def getDiscountData(self, urlbase, icg_id, icg_talla, icg_color):
@@ -187,6 +299,23 @@ class MSSQL(object):
             logger.info("[" + str(datetime.now()) + "] getDiscountData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
             return False
 
+    def getDiscountData(self, urlbase, icg_id, icg_talla, icg_color):
+        logger = logging.getLogger('command.updatetoprestashop')
+        logger.info("Estic a getDiscountDataDirecte")
+        cursor = self.get_cursor()
+
+        sql = ("SELECT TOP 1 * FROM view_imp_preus WHERE Codarticulo = '" + str(icg_id) +
+            "' and Talla = '" + str(icg_talla) + "' and Color ='" + str(icg_color) + "'")
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        if rows:
+            data = pd.DataFrame.from_records(rows)
+            return data
+        else:
+            logger.info("[" + str(datetime.now()) + "getProductData > Result of query " +  str(rows) + " : " + " Query: " + str(sql))
+            return False
+
+
     def getManufacturerData(self, urlbase, ps_name):
         logger = logging.getLogger('command.updatetoprestashop')
         filename = 'getProductData.php'
@@ -208,6 +337,21 @@ class MSSQL(object):
         else:
             #logger.error("[" + str(datetime.now()) + "] getManufacturerData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
             logger.info("[" + str(datetime.now()) + "] getManufacturerData > Result of query " +  str(result.status_code) + " : " + str(result.content) + " Query: " + str(sql))
+            return False
+
+    def getManufacturerData(self, urlbase, ps_name):
+        logger = logging.getLogger('command.updatetoprestashop')
+        logger.info("Estic a getManufacturereDataDirecte")
+        cursor = self.get_cursor()
+
+        sql = "SELECT TOP 1 * FROM view_imp_articles WHERE Descripcion_Marca = '" + ps_name + "'"
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        if rows:
+            data = pd.DataFrame.from_records(rows)
+            return data
+        else:
+            logger.info("[" + str(datetime.now()) + "getProductData > Result of query " +  str(rows) + " : " + " Query: " + str(sql))
             return False
 
 # vim: et ts=4 sw=4

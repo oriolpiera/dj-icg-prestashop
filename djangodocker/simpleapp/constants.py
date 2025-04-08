@@ -12,3 +12,7 @@ TAX_ID = {
     10: 2,
     4: 3,
 }
+MSSQL_SERVER = environ['MSSQL_SERVER']
+MSSQL_DATABASE = environ['MSSQL_DATABASE']
+MSSQL_USER = environ['MSSQL_USER']
+MSSQL_PASSWORD = environ['MSSQL_PASSWORD']
