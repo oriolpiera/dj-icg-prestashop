@@ -5,7 +5,8 @@ from . import mytools, mssql, constants
 import csv
 from django.utils.timezone import make_aware
 from datetime import datetime
-#from django.contrib.postgres.fields import JSONField
+import pytz
+
 
 class Category(models.Model):
     """
@@ -295,7 +296,11 @@ class Product(models.Model):
             self.icg_id = row[0]
             self.icg_reference = row[1]
             self.icg_name = row[6]
-            self.icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
+            try:
+                tz = pytz.timezone('UTC')
+                self.icg_modified_date = make_aware(row[11],tz)
+            except:
+                self.icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S.%f'))
             if self.manufacturer == None or self.manufacturer.icg_id != row[13] and row[13]:
                 man = Manufacturer.objects.get_or_create(icg_id = row[13], icg_name = row[14])
                 self.manufacturer = man[0]
@@ -370,7 +375,11 @@ class Combination(models.Model):
             if row[4]:
                 self.ean13 = str(row[4]).strip()
             self.discontinued = True if row[15] == 'T' else False
-            self.icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
+            try:
+                tz = pytz.timezone('UTC')
+                self.icg_modified_date = make_aware(row[11],tz)
+            except:
+                self.icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S.%f'))
             self.updated = True
             self.save()
             if len(Price.objects.filter(combination_id__pk=self.pk)) == 0:
@@ -427,7 +436,11 @@ class Stock(models.Model):
             return False
         for index,row in result.iterrows():
             self.icg_stock = 0 if row[7] < 0 else row[7]
-            self.icg_modified_date = make_aware(datetime.strptime(row[8], '%Y-%m-%d %H:%M:%S'))
+            try:
+                tz = tz = pytz.timezone('UTC')
+                self.icg_modified_date = make_aware(row[8],tz)
+            except:
+                self.icg_modified_date = make_aware(datetime.strptime(row[8], '%Y-%m-%d %H:%M:%S.%f'))
             self.updated = True
             self.save()
         return True
@@ -482,7 +495,11 @@ class Price(models.Model):
         for index,row in result.iterrows():
             self.iva = row[8]
             self.pvp_siva = row[9]
-            self.icg_modified_date = make_aware(datetime.strptime(row[12], '%Y-%m-%d %H:%M:%S'))
+            try:
+                tz = tz = pytz.timezone('UTC')
+                self.icg_modified_date = make_aware(row[12], tz)
+            except:
+                self.icg_modified_date = make_aware(datetime.strptime(row[12], '%Y-%m-%d %H:%M:%S.%f'))
             self.pvp = row[4]
             self.preu_oferta = float(row[4]) - float(row[7])
             self.preu_oferta = row[10]
@@ -635,7 +652,7 @@ class SpecificPrice(models.Model):
         return result
 
     def comparePS(self, product):
-        if self.dto_percent != float(product['specific_price']['reduction']) * 100:
+        if not product['specific_price']['reduction'] or self.dto_percent != float(product['specific_price']['reduction']) * 100:
             product['specific_price']['reduction'] = str(float(self.dto_percent/100))
             return True, product
         return False, {}
@@ -656,7 +673,11 @@ class SpecificPrice(models.Model):
             return False
         for index,row in result.iterrows():
             self.dto_percent = row[5]
-            self.icg_modified_date = make_aware(datetime.strptime(row[12], '%Y-%m-%d %H:%M:%S'))
+            try:
+                tz = tz = pytz.timezone('UTC')
+                self.icg_modified_date = make_aware(row[12],tz)
+            except:
+                self.icg_modified_date = make_aware(datetime.strptime(row[12], '%Y-%m-%d %H:%M:%S.%f'))
             self.updated = True
             self.save()
         return True
