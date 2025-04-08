@@ -89,6 +89,56 @@ class ControllerICGProducts(object):
                     {'combination_id': comb, 'product_id': prod},{})
                 spec_price.updateFromICG()
 
+    def saveNewProductsDirecte(self):
+        logger = logging.getLogger('simpleapp.views')
+        ms = mssql.MSSQL()
+        llista  = ms.newProductsDirecte()
+        logger.info("[" + str(datetime.now()) + "] Ens arribat una request PHP tipus: Product\n")
+        logger.info(llista)
+        ean13 = ''
+        for row in llista:
+            icg_id = row[0]
+            icg_reference = row[1]
+            icg_talla = self.escapeSpecialChars(row[2])
+            icg_color = self.escapeSpecialChars(row[3])
+            if row[4]:
+                ean13 = row[4]
+            icg_name = row[6]
+            iva = row[8]
+            icg_modified_date = make_aware(row[11])
+            visible_web = True if row[12] == 'T' else False
+            manufacturer_id = row[13]
+            discontinued = True if row[15] == 'T' else False
+
+            if not icg_id or icg_reference:
+                continue
+            if row[14]:
+                man = self.get_create_or_update('Manufacturer',
+                    {'icg_id': manufacturer_id}, {'icg_name': row[14] })
+            prod = self.get_create_or_update('Product', {'icg_id': icg_id},
+                {'icg_reference': icg_reference, 'icg_name': icg_name, 'visible_web': visible_web,
+                 'manufacturer': man, 'icg_modified_date': icg_modified_date})
+
+            comb = self.get_create_or_update('Combination', {'product_id': prod,
+                'icg_color': icg_color, 'icg_talla': icg_talla},
+                {'discontinued': discontinued, 'ean13': ean13})
+
+            price_exist = models.Price.objects.filter(combination_id = comb)
+            if not price_exist:
+                price = self.get_create_or_update('Price', {'combination_id': comb}, {})
+                price.updateFromICG()
+
+            stock_exist = models.Stock.objects.filter(combination_id = comb)
+            if not stock_exist:
+                stock = self.get_create_or_update('Stock', {'combination_id': comb}, {})
+                stock.updateFromICG()
+
+            sp_exist = models.SpecificPrice.objects.filter(combination_id = comb, product_id = prod)
+            if not sp_exist:
+                spec_price = self.get_create_or_update('SpecificPrice',
+                    {'combination_id': comb, 'product_id': prod},{})
+                spec_price.updateFromICG()
+
     def saveNewPrices(self, url_base=None, data=None):
         if not url_base:
             url_base = self._url_base
@@ -118,6 +168,36 @@ class ControllerICGProducts(object):
                 spec_price.updateFromICG()
 
 
+    def saveNewPricesDirecte(self):
+        logger = logging.getLogger('simpleapp.views')
+        ms = mssql.MSSQL()
+        np  = ms.newPricesDirecte()
+        logger.info("[" + str(datetime.now()) + "] Ens arribat una request PHP tipus: Preus\n")
+        logger.info(np)
+        for row in np:
+            icg_id = row[1]
+            icg_talla = self.escapeSpecialChars(row[2])
+            icg_color = self.escapeSpecialChars(row[3])
+            dto_percent = row[5]
+            iva = row[8]
+            pvp_siva = row[9]
+            #'2020-01-20 16:55:35'
+            icg_modified_date = make_aware(row[12])
+
+            prod = self.get_create_or_update('Product', {'icg_id': icg_id},{})
+            if not prod.icg_reference:
+                prod.updateFromICG()
+            comb = self.get_create_or_update('Combination', {'product_id': prod,
+                'icg_color': icg_color, 'icg_talla': icg_talla},{})
+            price = self.get_create_or_update('Price', {'combination_id': comb}, {'iva': iva,
+                'pvp_siva': pvp_siva, 'icg_modified_date': icg_modified_date})
+
+            if dto_percent:
+                spec_price = self.get_create_or_update('SpecificPrice', {'combination_id': comb},
+                    {'dto_percent': dto_percent, 'icg_modified_date': icg_modified_date, 'product_id': prod})
+                spec_price.updateFromICG()
+
+
     def saveNewStocks(self, url_base=None, data=None):
         if not url_base:
             url_base = self._url_base
@@ -129,6 +209,26 @@ class ControllerICGProducts(object):
             icg_color = self.escapeSpecialChars(row[2])
             icg_stock = row[7]
             icg_modified_date = make_aware(datetime.strptime(row[8], '%Y-%m-%d %H:%M:%S'))
+            prod = self.get_create_or_update('Product', {'icg_id': icg_id},{})
+            if not prod.icg_reference:
+                prod.updateFromICG()
+            comb = self.get_create_or_update('Combination', {'product_id': prod,
+                'icg_color': icg_color, 'icg_talla': icg_talla},{})
+            stock = self.get_create_or_update('Stock', {'combination_id': comb},
+                {'icg_stock': icg_stock, 'icg_modified_date': icg_modified_date})
+
+    def saveNewStocksDirecte(self):
+        logger = logging.getLogger('simpleapp.views')
+        ms = mssql.MSSQL()
+        llista = ms.newStocksDirecte()
+        logger.info("[" + str(datetime.now()) + "] Ens arribat una request PHP tipus: Stock\n")
+        logger.info(llista)
+        for row in llista:
+            icg_id = row[0]
+            icg_talla = self.escapeSpecialChars(row[1])
+            icg_color = self.escapeSpecialChars(row[2])
+            icg_stock = row[7]
+            icg_modified_date = make_aware(row[8])
             prod = self.get_create_or_update('Product', {'icg_id': icg_id},{})
             if not prod.icg_reference:
                 prod.updateFromICG()
@@ -176,7 +276,7 @@ class ControllerICGProducts(object):
             prod.icg_id = row[0]
             prod.icg_reference = row[1]
             prod.icg_name = row[6]
-            prod.icg_modified_date = make_aware(datetime.strptime(row[11], '%Y-%m-%d %H:%M:%S'))
+            prod.icg_modified_date = make_aware(row[11])
             prod.updated = False
             prod.save()
         return True
@@ -205,7 +305,7 @@ class ControllerICGProducts(object):
             return False
         for index,row in result.iterrows():
             stock.icg_stock = row[7]
-            stock.icg_modified_date = make_aware(datetime.strptime(row[8], '%Y-%m-%d %H:%M:%S'))
+            stock.icg_modified_date = make_aware(row[8])
             stock.updated = False
             stock.save()
         return True
@@ -219,7 +319,7 @@ class ControllerICGProducts(object):
         for index,row in result.iterrows():
             price.iva = row[8]
             price.pvp_siva = row[9]
-            price.icg_modified_date = make_aware(datetime.strptime(row[12], '%Y-%m-%d %H:%M:%S'))
+            price.icg_modified_date = make_aware(row[12])
             price.pvp = row[4]
             price.preu_oferta = float(row[4]) - float(row[7])
             price.preu_oferta = row[10]
@@ -239,7 +339,7 @@ class ControllerICGProducts(object):
             return False
         for index,row in result.iterrows():
             sp.dto_percent = row[5]
-            sp.icg_modified_date = make_aware(datetime.strptime(row[12], '%Y-%m-%d %H:%M:%S'))
+            sp.icg_modified_date = make_aware(row[12])
             if not sp.product_id:
                 sp.product_id = self.get_create_or_update('Product', {'icg_id': row[1]})
             sp.updated = False
