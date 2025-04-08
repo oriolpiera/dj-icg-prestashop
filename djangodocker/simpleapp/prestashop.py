@@ -5,6 +5,10 @@ from django.core.exceptions import ObjectDoesNotExist,MultipleObjectsReturned
 import datetime
 import logging
 from . import controller, constants, mytools
+from time import sleep
+
+#Hack Cloudflare
+SLEEP_TIME = 0.4
 
 class ControllerPrestashop(object):
     def __init__(self):
@@ -66,11 +70,15 @@ class ControllerPrestashop(object):
         if category.ps_id:
             try:
                 response = self._api.get('categories', resource_id=category.ps_id)
-            except prestapyt.prestapyt.PrestaShopWebServiceError:
-                #No exist in PS anymore. Recreate
-                category.ps_id = 0
-                category.save()
-                return self.get_or_create_category(category)
+            except prestapyt.prestapyt.PrestaShopWebServiceError as e:
+                if 'Access denied' in e.msg  or 'Just a moment...' in e.msg:
+                    raise Exception("API no disponible")
+                if 'HTTP response is empty' in e.msg:
+                    #No exist in PS anymore. Recreate
+                    category.ps_id = 0
+                    category.save()
+                    return self.get_or_create_category(category)
+                self.logger.info("API error: %s", str(e))
         else:
             p_data = self._api.get('categories', options={'schema': 'blank'})
             p_data['category']['name'] = mytools.update_ps_dict(
@@ -99,11 +107,15 @@ class ControllerPrestashop(object):
         if manufacturer.ps_id:
             try:
                 response = self._api.get('manufacturers', resource_id=manufacturer.ps_id)
-            except prestapyt.prestapyt.PrestaShopWebServiceError:
-                #No exist in PS anymore. Recreate
-                manufacturer.ps_id = 0
-                manufacturer.save()
-                return self.get_or_create_manufacturer(manufacturer)
+            except prestapyt.prestapyt.PrestaShopWebServiceError as e:
+                if 'Access denied' in e.msg  or 'Just a moment...' in e.msg:
+                    raise Exception("API no disponible")
+                if 'HTTP response is empty' in e.msg:
+                    #No exist in PS anymore. Recreate
+                    manufacturer.ps_id = 0
+                    manufacturer.save()
+                    return self.get_or_create_manufacturer(manufacturer)
+                self.logger.info("API error: %s", str(e))
 
             updated, new_man_ps = manufacturer.compare(response)
             if updated:
@@ -134,11 +146,15 @@ class ControllerPrestashop(object):
         if product.ps_id:
             try:
                 response = self._api.get('products', resource_id=product.ps_id)
-            except prestapyt.prestapyt.PrestaShopWebServiceError:
-                #No exist in PS anymore. Recreate
-                product.ps_id = 0
-                product.save()
-                return self.get_or_create_product(product)
+            except prestapyt.prestapyt.PrestaShopWebServiceError as e:
+                if 'Access denied' in e.msg  or 'Just a moment...' in e.msg:
+                    raise Exception("API no disponible")
+                if 'HTTP response is empty' in e.msg:
+                    #No exist in PS anymore. Recreate
+                    product.ps_id = 0
+                    product.save()
+                    return self.get_or_create_product(product)
+                self.logger.info("API error: %s", str(e))
 
             updated, new_prod_ps = product.compare(response)
 
@@ -191,7 +207,8 @@ class ControllerPrestashop(object):
             p_data['product']['reference'] = product.icg_reference
             p_data['product']['price'] = 0
 
-            p_data['product']['position_in_category'] = 0
+            #p_data['product']['position_in_category'] = 0
+            p_data['product'].pop('position_in_category', None)
             if not product.iva:
                 product.updateIVA()
             id_tax = constants.TAX_ID.get(product.iva)
@@ -246,15 +263,19 @@ class ControllerPrestashop(object):
             try:
                 response = self._api.get('combinations', resource_id=comb.ps_id)
             except prestapyt.prestapyt.PrestaShopWebServiceError as e:
-                #No exist in PS anymore. Recreate
                 if comb.discontinued:
                     comb.ps_id = 0
                     comb.updated = False
                     comb.save()
                     return response
-                comb.ps_id = 0
-                comb.save()
-                return self.get_or_create_combination(comb)
+                if 'Access denied' in e.msg  or 'Just a moment...' in e.msg:
+                    raise Exception("API no disponible")
+                if 'HTTP response is empty' in e.msg:
+                    #No exist in PS anymore. Recreate
+                    comb.ps_id = 0
+                    comb.save()
+                    return self.get_or_create_combination(comb)
+                self.logger.info("API error: %s", str(e))
             updated, new_comb_ps = comb.compare(response)
             if price and (price != response['combination']['price']):
                 new_comb_ps['combination']['price'] = price
@@ -273,7 +294,7 @@ class ControllerPrestashop(object):
                     response_edit = self._api.edit('combinations', new_comb_ps)
                     self.logger.info("Combinacio modificada: %s", str(new_comb_ps))
         #We need to create combinations even when the product is not visible web
-        elif comb.discontinued or comb.product_id.ps_id == 0:
+        elif comb.discontinued or comb.product_id.ps_id == 0 or not comb.product_id.ps_id:
         #elif comb.discontinued:
             comb.updated = False
             comb.save()
@@ -323,12 +344,14 @@ class ControllerPrestashop(object):
         #self.logger.info(response['combinations'])
         if response['combinations'] and isinstance(response['combinations']['combination'], list):
             for comb in response['combinations']['combination']:
+                sleep(SLEEP_TIME)
                 combination = self._api.get('combinations', resource_id=comb['attrs']['id'])
                 if isinstance(combination['combination']['associations']['product_option_values']['product_option_value'], list):
                     if ({'id': str(talla)} in
                         combination['combination']['associations']['product_option_values']['product_option_value']) and ({'id': str(color)} in 
                         combination['combination']['associations']['product_option_values']['product_option_value']):
                         return comb['attrs']['id']
+
         return False
 
     def get_or_create_price(self, price):
@@ -353,11 +376,16 @@ class ControllerPrestashop(object):
         if po.ps_id:
             try:
                 response = self._api.get('product_options', resource_id=po.ps_id)
-            except prestapyt.prestapyt.PrestaShopWebServiceError:
-                #No exist in PS anymore. Recreate
-                po.ps_id = 0
-                po.save()
-                return self.get_or_create_product_options(po)
+            except prestapyt.prestapyt.PrestaShopWebServiceError as e:
+                if 'Access denied' in e.msg  or 'Just a moment...' in e.msg:
+                    raise Exception("API no disponible")
+                if 'HTTP response is empty' in e.msg:
+                    #No exist in PS anymore. Recreate
+                    #No exist in PS anymore. Recreate
+                    po.ps_id = 0
+                    po.save()
+                    return self.get_or_create_product_options(po)
+                self.logger.info("API error: %s", str(e))
         #elif not po.product_id.visible_web:
         #    po.updated = False
         #    po.save()
@@ -396,12 +424,19 @@ class ControllerPrestashop(object):
                     pov.ps_name =  self.get_language(
                             response['product_option_value']['name']['language'])
                     pov.save()
-
-            except prestapyt.prestapyt.PrestaShopWebServiceError:
-                #No exist in PS anymore. Recreate
-                pov.ps_id = 0
+                pov.updated = False
                 pov.save()
-                return self.get_or_create_product_option_value(pov)
+                return response
+            except prestapyt.prestapyt.PrestaShopWebServiceError as e:
+                #No exist in PS anymore. Recreate
+                if 'Access denied' in e.msg  or 'Just a moment...' in e.msg:
+                    raise Exception("API no disponible")
+                if 'HTTP response is empty' in e.msg:
+                    #No exist in PS anymore. Recreate
+                    pov.ps_id = 0
+                    pov.save()
+                    return self.get_or_create_product_option_value(pov)
+                self.logger.info("API error: %s", str(e))
         else:
             response = self._api.get('product_option_values', None,
                 {'filter[id_attribute_group]': pov.po_id.ps_id})
@@ -412,6 +447,7 @@ class ControllerPrestashop(object):
                     data = [data]
 
                 for p in data:
+                    sleep(SLEEP_TIME)
                     pov_ps_id = int(p['attrs']['id'])
                     pov_data = self._api.get('product_option_values', pov_ps_id)
                     temp_name = mytools.get_ps_language(
@@ -420,6 +456,7 @@ class ControllerPrestashop(object):
                         pov.ps_id = int(pov_data['product_option_value']['id'])
                         pov.save()
                         return self.get_or_create_product_option_value(pov)
+
 
             #Ok, let's create it
             pov_data = self._api.get('product_option_values', options={'schema': 'blank'})
@@ -440,12 +477,17 @@ class ControllerPrestashop(object):
             try:
                 response = self._api.get('specific_prices', resource_id=price.ps_id)
             except prestapyt.prestapyt.PrestaShopWebServiceError as e:
+                if 'Access denied' in e.msg:
+                    raise Exception("API no disponible")
                 #No exist in PS anymore. Recreate
-                #if price.dto_percent == 0:
-                #    raise prestapyt.prestapyt.PrestaShopWebServiceError(e)
-                price.ps_id = 0
-                price.save()
-                return self.get_or_create_specific_price(price)
+                if 'HTTP response is empty' in e.msg:
+                    #No exist in PS anymore. Recreate
+                    #if price.dto_percent == 0:
+                    #    raise prestapyt.prestapyt.PrestaShopWebServiceError(e)
+                    price.ps_id = 0
+                    price.save()
+                    return self.get_or_create_specific_price(price)
+                self.logger.info("API error: %s", str(e))
 
             updated, new_price_ps = price.comparePS(response)
             if updated:
@@ -512,11 +554,15 @@ class ControllerPrestashop(object):
                 response['stock_available']['quantity'] = 0 if stock.icg_stock < 0 else stock.icg_stock
                 response_edit = self._api.edit('stock_availables', response)
                 stock.ps_stock = int(response_edit['prestashop']['stock_available']['quantity'])
-            except prestapyt.prestapyt.PrestaShopWebServiceError:
-                #No exist in PS anymore. Recreate
-                stock.ps_id = 0
-                stock.save()
-                return self.get_or_create_stock(stock)
+            except prestapyt.prestapyt.PrestaShopWebServiceError as e:
+                if 'Access denied' in e.msg or 'Just a moment...' in e.msg:
+                    raise Exception("API no disponible")
+                if 'HTTP response is empty' in e.msg:
+                    #No exist in PS anymore. Recreate
+                    stock.ps_id = 0
+                    stock.save()
+                    return self.get_or_create_stock(stock)
+                self.logger.info("API error: %s", str(e))
 
         elif stock.combination_id.discontinued or not stock.combination_id.ps_id: #or not stock.combination_id.product_id.visible_web:
             stock.updated = False
@@ -556,11 +602,14 @@ class ControllerPrestashop(object):
         if lang.ps_id:
             try:
                 response = self._api.get('languages', resource_id=lang.ps_id)
-            except prestapyt.prestapyt.PrestaShopWebServiceError:
+            except prestapyt.prestapyt.PrestaShopWebServiceError as e:
                 #No exist in PS anymore. Recreate
-                lang.ps_id = 0
-                lang.save()
-                return self.get_or_create_language(lang)
+                if 'Access denied' in e.msg  or 'Just a moment...' in e.msg :
+                    raise Exception("API no disponible")
+                #lang.ps_id = 0
+                #lang.save()
+                #return self.get_or_create_language(lang)
+                self.logger.info("API error: %s", str(e))
         else:
             if lang.ps_name:
                 response = self._api.get('languages', None,
@@ -598,6 +647,7 @@ class ControllerPrestashop(object):
         ps_man = []
         updated_manufacturers = models.Manufacturer.objects.filter(updated = True).exclude(icg_name__isnull=True).exclude(icg_name__exact='')
         for man in updated_manufacturers:
+            sleep(SLEEP_TIME)
             try:
                 m = self.get_or_create_manufacturer(man)
                 if m:
@@ -608,9 +658,11 @@ class ControllerPrestashop(object):
                 ps_exceptions.append(man)
                 continue
 
+
         ps_prod = []
         updated_products = models.Product.objects.filter(updated = True)
         for prod in updated_products:
+            sleep(SLEEP_TIME)
             try:
                 p = self.get_or_create_product(prod)
                 if p:
@@ -620,9 +672,11 @@ class ControllerPrestashop(object):
                 ps_exceptions.append(prod)
                 continue
 
+
         ps_po = []
         updated_product_options = models.ProductOption.objects.filter(updated = True)
         for po in updated_product_options:
+            sleep(SLEEP_TIME)
             try:
                 p = self.get_or_create_product_options(po)
                 if p:
@@ -632,9 +686,11 @@ class ControllerPrestashop(object):
                 ps_exceptions.append(po)
                 continue
 
+
         ps_pov = []
         updated_product_options_values = models.ProductOptionValue.objects.filter(updated = True)
         for pov in updated_product_options_values:
+            sleep(SLEEP_TIME)
             try:
                 p = self.get_or_create_product_option_value(pov)
                 if p:
@@ -644,9 +700,11 @@ class ControllerPrestashop(object):
                 ps_exceptions.append(pov)
                 continue
 
+
         ps_comb = []
         updated_comb = models.Combination.objects.filter(updated = True)
         for comb in updated_comb:
+            sleep(SLEEP_TIME)
             try:
                 c = self.get_or_create_combination(comb)
                 if c:
@@ -658,9 +716,11 @@ class ControllerPrestashop(object):
                 ps_exceptions.append(comb)
                 continue
 
+
         ps_price = []
         updated_price = models.Price.objects.filter(updated = True)
         for price in updated_price:
+            sleep(SLEEP_TIME)
             try:
                 c = self.get_or_create_price(price)
                 if c:
@@ -670,9 +730,11 @@ class ControllerPrestashop(object):
                 ps_exceptions.append(price)
                 continue
 
+
         ps_sp = []
         updated_specific_price = models.SpecificPrice.objects.filter(updated = True)
         for sp in updated_specific_price:
+            sleep(SLEEP_TIME)
             try:
                 s = self.get_or_create_specific_price(sp)
                 if s:
@@ -682,9 +744,11 @@ class ControllerPrestashop(object):
                 ps_exceptions.append(sp)
                 continue
 
+
         ps_stock = []
         updated_stock = models.Stock.objects.filter(updated = True)
         for stock in updated_stock:
+            sleep(SLEEP_TIME)
             try:
                 s = self.get_or_create_stock(stock)
                 if s:
@@ -693,6 +757,7 @@ class ControllerPrestashop(object):
                 print("Exception with: " + str(stock))
                 ps_exceptions.append(stock)
                 continue
+
 
         updated = (ps_sp or ps_price or ps_comb or ps_pov or ps_po or ps_prod or ps_man or ps_stock)
         return updated, {'ps_manufacturers': ps_man, 'ps_products': ps_prod, 'ps_productoptions': ps_po,
