@@ -1,7 +1,7 @@
 from os import environ
-#ICG_PS_LANG = '4'
-ICG_PS_LANG = '1'
-ICG_CATEGORY = '1'
+ICG_PS_LANG = '4'
+ICG_CATEGORY = '251'
+NO_VISIBLE_CATEGORY = '526'
 MSSQL_TOKEN = environ['MSSQL_TOKEN']
 URLBASE = environ['URLBASE']
 PS_URL = environ['PS_URL']
